@@ -497,3 +497,114 @@ fn daily_cap_applies_to_pay_out_and_faucet_and_resets_at_utc_midnight() {
     set(TREASURY, 6402, 0);
     assert_eq!(c.get_stats().day_paid.0, 50_000 * ONE_COIN);
 }
+
+// ------------------------------------------------- very large elapsed time
+
+/// Runs `f`; returns the panic message if it panicked.
+fn panic_msg(f: impl FnOnce()) -> Option<String> {
+    let err = catch_unwind(AssertUnwindSafe(f)).err()?;
+    Some(
+        err.downcast_ref::<String>()
+            .cloned()
+            .or_else(|| err.downcast_ref::<&str>().map(|s| s.to_string()))
+            .unwrap_or_else(|| "<non-string panic>".into()),
+    )
+}
+
+/// From 30 days (index tiny) to the largest timestamp a u64 can hold (index 0):
+/// every view keeps answering and conserving supply; every state change either works or
+/// fails with a clear message (never a raw overflow or an unexplained panic).
+#[test]
+fn very_large_elapsed_time_views_survive_and_writes_fail_clearly() {
+    let day = 86_400u64;
+    let max_secs = (u64::MAX - T0) / NS_PER_SEC; // ~584 years of block time
+    let points = [0, day, 28 * day, 30 * day, 35 * day, 40 * day, 42 * day, 43 * day, 60 * day, 365 * day, 100 * 365 * day, max_secs];
+
+    let mut c = deploy(FACTOR_DEMO);
+    let (u1, u2, tre) = (acct(1), acct(2), TREASURY.parse::<AccountId>().unwrap());
+    claim_as(&mut c, &u1, 0);
+    // u2 is registered but has not claimed, so a later claim() has real work to do.
+    set(u2.as_str(), 0, cost(&c));
+    c.storage_deposit(None, None);
+    let initial = bal(&c, &u1);
+    assert_eq!(initial, 100 * ONE_COIN);
+
+    let (mut last_index, mut last_balance) = (RAY, initial);
+    let mut saw_tiny = false;
+    let mut saw_zero = false;
+
+    for &secs in &points {
+        // ---- views: must answer, never panic, and stay consistent
+        set("viewer.testnet", secs, 0);
+        let index = c.get_index().0;
+        assert!(index <= last_index, "index must never rise (t={secs}s)");
+        let stats = c.get_stats();
+        assert_eq!(stats.index.0, index);
+        assert_eq!(stats.treasury.0 + stats.circulating.0, TOTAL_SUPPLY, "supply conserved (t={secs}s)");
+        assert_eq!(treasury(&c), stats.treasury.0, "ft_balance_of(treasury) == get_stats().treasury");
+        assert_eq!(c.ft_total_supply().0, TOTAL_SUPPLY);
+        let b = bal(&c, &u1);
+        assert!(b <= last_balance, "a holder's balance never rises by itself (t={secs}s)");
+        assert_eq!(c.get_account(u1.clone()).unwrap().balance.0, b);
+        assert_eq!(c.get_account(u1.clone()).unwrap().shares.0, 100 * ONE_COIN, "shares are untouched by decay");
+        assert!(c.get_account(acct(99)).is_none());
+        assert_eq!(bal(&c, &acct(99)), 0);
+        assert!(stats.day_remaining.0 <= stats.day_cap.0);
+        let _ = (c.get_params(), c.storage_balance_of(u1.clone()), c.storage_balance_bounds(), c.ft_metadata());
+        let _ = &tre;
+        (last_index, last_balance) = (index, b);
+        saw_tiny |= index > 0 && index < 1_000_000_000;
+        saw_zero |= index == 0;
+        if index == 0 {
+            assert_eq!(b, 0);
+            assert_eq!(stats.treasury.0, TOTAL_SUPPLY, "everything has melted back to the treasury");
+        }
+
+        // ---- state changes: before day 30 they work normally, so only probe the failure zone
+        if secs < 30 * day {
+            continue;
+        }
+        let clear = |m: &str| m.contains("Index is zero") || m.contains("Index too small") || m.contains("Not enough balance");
+        let results = [
+            ("claim", panic_msg(|| { set(u2.as_str(), secs, cost(&c)); c.claim(); })),
+            ("ft_transfer", panic_msg(|| { set(u1.as_str(), secs, 1); c.ft_transfer(u2.clone(), ONE_COIN.into(), None); })),
+            ("pay_out", panic_msg(|| { set(GOVERNOR, secs, 0); c.pay_out(u2.clone(), (10 * ONE_COIN).into(), None); })),
+        ];
+        for (name, r) in &results {
+            if let Some(m) = r {
+                assert!(clear(m), "{name} at t={secs}s failed with an unclear message: {m:?}");
+            } else if *name != "claim" && *name != "pay_out" {
+                panic!("{name} unexpectedly succeeded at t={secs}s (index {index})");
+            }
+        }
+        if index == 0 {
+            for (name, r) in &results {
+                let m = r.as_ref().unwrap_or_else(|| panic!("{name} must fail at index 0"));
+                assert!(m.contains("Index is zero"), "{name}: {m:?}");
+            }
+        }
+        if secs >= 35 * day {
+            // Tiny index: a 100-coin claim or a 10-coin payout can no longer be expressed in u128 shares.
+            for (name, r) in [&results[0], &results[2]].map(|(n, r)| (*n, r)) {
+                let m = r.as_ref().unwrap_or_else(|| panic!("{name} must fail at t={secs}s"));
+                assert!(m.contains("Index too small") || m.contains("Index is zero"), "{name}: {m:?}");
+            }
+        }
+        // a transfer of the whole (now melted) balance is refused as "Not enough balance", clearly
+        if index < 1_000_000 {
+            let m = results[1].1.as_ref().expect("transfer must fail once u1's balance has melted to zero");
+            assert!(m.contains("Index is zero") || m.contains("Not enough balance"), "{m:?}");
+        }
+    }
+    assert!(saw_tiny, "the test must visit a tiny but non-zero index");
+    assert!(saw_zero, "the test must visit index == 0");
+
+    // ---- at index 0, leaving is still possible: nobody's storage deposit is trapped
+    set(u1.as_str(), max_secs, 1);
+    assert!(c.storage_unregister(None), "unregister with a melted balance works at index 0");
+    set(u2.as_str(), max_secs, 1);
+    assert!(c.storage_unregister(None));
+    assert_eq!(c.get_stats().holders, 0);
+    assert_eq!(c.total_shares, 0);
+    assert_eq!(treasury(&c), TOTAL_SUPPLY);
+}

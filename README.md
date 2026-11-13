@@ -82,7 +82,7 @@ Rounding rules, always in the contract's favour:
 
 ## Limitations
 
-- **Demo rate vs real rate.** At the demo rate the index reaches 0 after about 43 days, and the share maths for large amounts overflows `u128` after about **28 days**, so the demo deployment is only meaningful for weeks. At the real rate (1% a month) precision lasts **centuries**. The simulation chart uses an illustrative 1% per day.
+- **Demo rate vs real rate.** At the demo rate the index reaches 0 after about 43 days, and the share maths for large amounts overflows `u128` after about **28 days**, so the demo deployment is only meaningful for weeks. Past that point reads (balances, stats, index) keep working, while `claim`, `ft_transfer` and `pay_out` fail with `Index too small ...` and, once the index is 0, `Index is zero ...`. Leaving still works: `storage_unregister` is allowed at index 0, so nobody's storage deposit is trapped. At the real rate (1% a month) precision lasts **centuries**. The simulation chart uses an illustrative 1% per day.
 - **Not sybil-resistant.** Accounts are free, so one person can create many accounts and claim the faucet many times (limited only by the daily cap). A council seat or a holder is just an account; a holder can vote, move coins and vote again. Treat the faucet and the DAO vote as a demo, not one-person-one-vote.
 - **Payout control is the DAO policy.** The token only enforces the cap; there is no quorum inside the token. Two of three council members can pay out up to the day's remaining cap.
 - **`ft_transfer_call` is not implemented**, so the token cannot be sent into contracts that need a callback (no cross-contract calls by design).

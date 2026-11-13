@@ -64,14 +64,29 @@ pub fn circulating_of(total_shares: u128, index: u128) -> u128 {
     mul_div_ceil(total_shares, index, RAY)
 }
 
+/// Shown when the index has decayed so far that `amount` coins no longer fit in u128 shares
+/// (about 29 days at the demo rate; centuries at the real rate). Reads still work.
+pub const TOO_DECAYED: &str =
+    "Index too small: the token has decayed too far to represent this amount in shares";
+
 /// shares for `amount` coins, rounded down (what a receiver gets)
 pub fn shares_floor(amount: u128, index: u128) -> u128 {
-    mul_div_floor(amount, RAY, index)
+    let q = U256::from(amount) * U256::from(RAY) / U256::from(index);
+    if q > U256::from(u128::MAX) {
+        panic!("{TOO_DECAYED}");
+    }
+    q.low_u128()
 }
 
 /// shares for `amount` coins, rounded up (what a sender loses)
 pub fn shares_ceil(amount: u128, index: u128) -> u128 {
-    mul_div_ceil(amount, RAY, index)
+    let (prod, idx) = (U256::from(amount) * U256::from(RAY), U256::from(index));
+    let q = prod / idx;
+    let q = if (prod % idx).is_zero() { q } else { q + U256::one() };
+    if q > U256::from(u128::MAX) {
+        panic!("{TOO_DECAYED}");
+    }
+    q.low_u128()
 }
 
 #[cfg(test)]
