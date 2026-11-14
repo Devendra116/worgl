@@ -215,13 +215,60 @@ fn overdraft_rejected() {
 }
 
 #[test]
-#[should_panic(expected = "treasury")]
-fn cannot_transfer_to_treasury_account() {
-    let mut c = deploy(FACTOR_DEMO);
-    let a = acct(1);
-    claim_as(&mut c, &a, 0);
-    set(a.as_str(), 0, 1);
-    c.ft_transfer(TREASURY.parse().unwrap(), 1.into(), None);
+fn ft_transfer_to_treasury_returns_coins_and_conserves_supply() {
+    let (mut c, a, _b, secs) = pair_with_time();
+    let tre: AccountId = TREASURY.parse().unwrap();
+    set(a.as_str(), secs, 0);
+    let before_tre = c.ft_balance_of(tre.clone()).0;
+    let before_bal = c.ft_balance_of(a.clone()).0;
+    let before_shares = c.total_shares;
+    let amt = 30 * 10u128.pow(18);
+    set(a.as_str(), secs, 1);
+    c.ft_transfer(tre.clone(), amt.into(), Some("give back".into()));
+    let after_bal = c.ft_balance_of(a.clone()).0;
+    assert!(before_bal - after_bal >= amt && before_bal - after_bal <= amt + 1, "sender pays the amount, rounding at most 1 unit against them");
+    let gained = c.ft_balance_of(tre.clone()).0 - before_tre;
+    assert!(gained >= amt && gained <= amt + 2, "treasury gains at least the amount: {gained}");
+    assert!(c.total_shares < before_shares, "the shares were destroyed");
+    let supply: u128 = c.ft_total_supply().0;
+    let sum = c.ft_balance_of(a.clone()).0 + c.ft_balance_of(_b.clone()).0 + c.ft_balance_of(tre).0;
+    assert!(sum <= supply, "balances plus treasury never exceed the supply");
+    let log = get_logs().into_iter().find(|l| l.contains("give back")).expect("event");
+    assert!(log.contains(TREASURY), "event names the treasury as receiver");
+}
+
+#[test]
+fn transfer_all_to_treasury_empties_the_sender_and_survives_a_day_roll() {
+    let (mut c, a, _b, secs) = pair_with_time();
+    let tre: AccountId = TREASURY.parse().unwrap();
+    set(a.as_str(), secs, 0);
+    let want = c.ft_balance_of(a.clone()).0;
+    let before_tre = c.ft_balance_of(tre.clone()).0;
+    set(a.as_str(), secs, 1);
+    let got = c.transfer_all(tre.clone(), None).0;
+    assert_eq!(got, want);
+    assert_eq!(c.accounts.get(&a).unwrap().shares, 0);
+    assert_eq!(c.ft_balance_of(a.clone()).0, 0);
+    assert!(c.ft_balance_of(tre.clone()).0 >= before_tre + want);
+    // a new UTC day: the cap is worked out from the larger treasury, and the books still balance
+    let next_day = secs + 2 * 86_400;
+    set(_b.as_str(), next_day, 0);
+    let s = c.get_stats();
+    assert!(s.day_cap.0 <= s.treasury.0 / 10 + 1);
+    assert!(s.circulating.0 + s.treasury.0 == 1_000_000 * 10u128.pow(18));
+}
+
+#[test]
+fn treasury_return_is_refused_without_balance_or_yocto() {
+    let (mut c, a, _b, secs) = pair_with_time();
+    let tre: AccountId = TREASURY.parse().unwrap();
+    set(a.as_str(), secs, 0);
+    panics_with("exactly 1 yoctoNEAR", || { c.ft_transfer(tre.clone(), 1.into(), None); });
+    set(a.as_str(), secs, 1);
+    panics_with("Not enough balance", || { c.ft_transfer(tre.clone(), (10u128.pow(30)).into(), None); });
+    let stranger = acct(9);
+    set(stranger.as_str(), secs, 1);
+    panics_with("Sender is not registered", || { c.transfer_all(tre.clone(), None); });
 }
 
 #[test]
@@ -722,11 +769,9 @@ fn transfer_all_refusals_change_nothing() {
     panics_with("exactly 1 yoctoNEAR", || { c.transfer_all(b.clone(), None); });
     set(a.as_str(), secs, 2);
     panics_with("exactly 1 yoctoNEAR", || { c.transfer_all(b.clone(), None); });
-    // to yourself, and to the contract's own account
+    // to yourself
     set(a.as_str(), secs, 1);
     panics_with("Sender and receiver should be different", || { c.transfer_all(a.clone(), None); });
-    set(a.as_str(), secs, 1);
-    panics_with("Cannot transfer to the treasury", || { c.transfer_all(TREASURY.parse().unwrap(), None); });
     // to an account that has not registered
     set(a.as_str(), secs, 1);
     panics_with("Receiver is not registered", || { c.transfer_all(stranger.clone(), None); });

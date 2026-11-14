@@ -224,13 +224,22 @@ impl Worgl {
         let amount: u128 = amount.into();
         require!(amount > 0, "The amount should be a positive number");
         require!(sender_id != receiver_id, "Sender and receiver should be different");
-        require!(
-            receiver_id != env::current_account_id(),
-            "Cannot transfer to the treasury"
-        );
         let mut sender = self.accounts.get(&sender_id).copied().unwrap_or_else(|| {
             env::panic_str("Sender is not registered")
         });
+        if receiver_id == env::current_account_id() {
+            // Returning coins to the treasury: the sender's shares are destroyed, so the treasury
+            // (supply - circulating) grows. Rounding is in the treasury's favour.
+            let bal = balance_of_shares(sender.shares, index);
+            require!(amount <= bal, "Not enough balance");
+            let loss = if amount == bal { sender.shares } else { shares_ceil(amount, index) };
+            require!(loss <= sender.shares, "Not enough balance");
+            sender.shares -= loss;
+            self.total_shares -= loss;
+            self.accounts.insert(sender_id.clone(), sender);
+            FtTransfer { old_owner_id: &sender_id, new_owner_id: &receiver_id, amount: amount.into(), memo: memo.as_deref() }.emit();
+            return;
+        }
         let mut receiver = self.accounts.get(&receiver_id).copied().unwrap_or_else(|| {
             env::panic_str("Receiver is not registered")
         });
@@ -269,22 +278,34 @@ impl Worgl {
     /// sender ends at exactly 0 and nothing is left behind. No share is rounded, created or destroyed:
     /// `total_shares` does not change, so no stored field other than the two accounts is touched.
     ///
-    /// Requires exactly 1 yoctoNEAR. The receiver must be registered and must be neither the caller nor
-    /// this contract's own account. Refused once the index has reached zero, and when there is nothing
+    /// Requires exactly 1 yoctoNEAR. The receiver must be registered and must not be the caller. If the
+    /// receiver is this contract's own account (the treasury), the caller's shares are destroyed and the
+    /// coins return to the treasury. Refused once the index has reached zero, and when there is nothing
     /// to send. Emits the same NEP-141 `ft_transfer` event as `ft_transfer`, with the amount worked out
     /// at this moment.
     #[payable]
     pub fn transfer_all(&mut self, receiver_id: AccountId, memo: Option<String>) -> U128 {
         assert_one_yocto();
         let index = self.live_index();
+        self.roll_day(); // before any change to total_shares, so the day-start treasury stays exact
         let sender_id = env::predecessor_account_id();
         require!(sender_id != receiver_id, "Sender and receiver should be different");
-        require!(receiver_id != env::current_account_id(), "Cannot transfer to the treasury");
         let mut sender = self
             .accounts
             .get(&sender_id)
             .copied()
             .unwrap_or_else(|| env::panic_str("Sender is not registered"));
+        if receiver_id == env::current_account_id() {
+            // Return the whole balance to the treasury: destroy every share the caller holds.
+            require!(sender.shares > 0, "Nothing to send: you hold no coins");
+            let amount = balance_of_shares(sender.shares, index);
+            require!(amount > 0, "Nothing to send: your balance is zero");
+            self.total_shares -= sender.shares;
+            sender.shares = 0;
+            self.accounts.insert(sender_id.clone(), sender);
+            FtTransfer { old_owner_id: &sender_id, new_owner_id: &receiver_id, amount: amount.into(), memo: memo.as_deref() }.emit();
+            return amount.into();
+        }
         let mut receiver = self
             .accounts
             .get(&receiver_id)
