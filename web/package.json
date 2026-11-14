@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Wörgl website: a small static multi-page site (Astro). Runs against the testnet token.",
+  "description": "W\u00f6rgl website: a small static multi-page site (Astro). Runs against the testnet token.",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "test": "node test.mjs"
+    "test": "node test.mjs",
+    "test:ui": "node ui-test.mjs"
   },
   "dependencies": {
     "astro": "7.4.12"

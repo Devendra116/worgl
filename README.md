@@ -243,6 +243,7 @@ assets/            Logo and screenshots used by this README
 | Sandbox tests (local NEAR node) | Token flow, governor-only payouts, an example Sputnik DAO governing `pay_out` | 2 (+1 slow) |
 | Slow sandbox test | The daily limit holds and resets across a UTC midnight | about 22 minutes, `scripts/test.sh --slow` |
 | Web checks | JavaScript maths, amount and timestamp handling, the simulation, wallet-error wording | 40 |
+| Wallet flow in a browser | A fake wallet connects, and the Claim button, its deposit and its messages are checked in headless Chrome: `npm run test:ui` (optional; needs Chrome and `npm run build`) | 5 (6 with `CLAIMED_ACCOUNT=<account>`) |
 | On-chain verifier | Recomputes a deployed token's numbers from raw chain state | `scripts/verify-testnet.sh` |
 
 The deployed wasm's code hash on testnet matches a fresh `scripts/build.sh` of this repository.
