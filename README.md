@@ -21,7 +21,7 @@ Prerequisites: Rust (with the `wasm32-unknown-unknown` target), `cargo-near`, Py
 
 ### Live testnet demo
 
-Token: [`devworgl-token.testnet`](https://testnet.nearblocks.io/address/devworgl-token.testnet), governed by the Sputnik DAO `devworgl-dao.sputnikv2.testnet` (3-member council, 2 approvals). The page defaults to this token; use `?token=` for another.
+Token: [`worgl-demo.testnet`](https://testnet.nearblocks.io/address/worgl-demo.testnet), governed by the Sputnik DAO `devworgl-dao.sputnikv2.testnet` (3-member council, 2 approvals). The page defaults to this token; use `?token=` for another.
 
 ### Deploy your own (you run these; nothing here sends a transaction unless you remove `DRY_RUN=1`)
 
@@ -37,7 +37,7 @@ Keys never go in the repo. `near` signs from your OS keychain; create or import 
 - A Rust contract (near-sdk 5.30.1) implementing NEP-141 (fungible token), NEP-145 (storage management) and NEP-148 (metadata). Claims and payouts emit NEP-141 `ft_transfer` events from the contract account.
 - Governance is a standard **Sputnik DAO v2** created from the testnet factory `sputnikv2.testnet`. The token does not run its own vote and makes **no cross-contract calls**; the DAO calls `pay_out` as a normal `FunctionCall` proposal.
 - Wallet sign-in on the page uses `@hot-labs/near-connect` (0.12.0, loaded from esm.sh; NEAR's docs recommend it, Wallet Selector is deprecated); all reads are plain RPC view calls. Recent activity comes from the NearBlocks v3 API.
-- Testnet: token `devworgl-token.testnet`, DAO `devworgl-dao.sputnikv2.testnet`.
+- Testnet: token `worgl-demo.testnet`, DAO `devworgl-dao.sputnikv2.testnet`.
 
 ## The mechanic
 
@@ -88,7 +88,7 @@ Rounding rules, always in the contract's favour:
 - **Not sybil-resistant.** The faucet is a testing feature. Accounts are free, so one person can create many accounts and claim many times (limited only by the daily cap). A council seat or a holder is just an account; a holder can vote, move coins and vote again. Treat the faucet and the DAO vote as a demo, not one-person-one-vote.
 - **Payout control is the DAO policy.** The token only enforces the cap; there is no quorum inside the token. Two of three council members can pay out up to the day's remaining cap.
 - **`ft_transfer_call` is not implemented**, so the token cannot be sent into contracts that need a callback (no cross-contract calls by design).
-- **Full-access key.** At the time of writing, `devworgl-token.testnet` still holds one full-access key, so its owner could redeploy different code. `deploy-testnet.sh` prints (does not run) the irreversible command that deletes it; do that only for a deployment you are finished with.
+- **Full-access key.** At the time of writing, `worgl-demo.testnet` still holds one full-access key, so its owner could redeploy different code. `deploy-testnet.sh` prints (does not run) the irreversible command that deletes it; do that only for a deployment you are finished with.
 - **Decay emits no events.** Balances change with the clock, not with a transaction, so explorers and wallets show a new balance only when they re-read it.
 - **A force-unregister resets the `claimed` flag**, so that account could claim again (still limited by the daily cap).
 - **Storage deposits** are held by the contract and refunded on unregister (cost plus 1 yocto), using plain transfers, not cross-contract calls.
