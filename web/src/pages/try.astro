@@ -2,92 +2,88 @@
 import Base from "../layouts/Base.astro";
 ---
 <Base title="Try it · Wörgl" description="Claim 100 test coins, send some to a friend and watch them melt, simulated or with your own NEAR testnet wallet." active="/try">
-<!-- TRY IT -->
 <section class="section lead-section" id="try" data-mode="sim" aria-labelledby="try-title">
   <h1 id="try-title" class="page-title">Try it in 60 seconds</h1>
-  <div class="prose">
-    <p>Four steps. No wallet? Simulate it: it runs the same maths in your browser. Want the real thing? Use your own testnet wallet.</p>
-  </div>
-  <div class="row mode" role="group" aria-label="How to try it">
-    <button id="mode-sim" type="button" aria-pressed="true">No wallet: simulate it</button>
-    <button id="mode-real" type="button" aria-pressed="false">My testnet wallet</button>
+  <p class="prose">Four steps. No wallet needed: the simulation runs the contract's maths in your browser. Prefer the real thing? Use your own testnet wallet.</p>
+  <div class="mode" role="group" aria-label="How to try it">
+    <div class="seg">
+      <button id="mode-sim" type="button" aria-pressed="true">Simulate it</button>
+      <button id="mode-real" type="button" aria-pressed="false">My testnet wallet</button>
+    </div>
   </div>
   <p id="mode-note" class="hint"></p>
 
-  <div class="try-grid">
-  <ol class="steps">
-    <li id="step-1" class="step">
-      <span class="n" aria-hidden="true">1</span>
-      <div class="body">
-        <h3>Get an account</h3>
-        <p class="only-sim">You get a demo account called You, and a friend called Sam.</p>
-        <p class="only-real">Connect a NEAR testnet wallet. It only needs to be able to send a transaction.</p>
-        <div class="row">
-          <button id="sim-join" type="button" class="solid only-sim">Create my demo account</button>
-          <button id="connect-step" type="button" class="solid only-real">Connect wallet</button>
-        </div>
-        <p id="s1-status" class="status" role="status"></p>
-      </div>
-    </li>
-    <li id="step-2" class="step">
-      <span class="n" aria-hidden="true">2</span>
-      <div class="body">
-        <h3>Claim 100 test coins</h3>
-        <p>This claim button is for testing on testnet, so anyone can try Wörgl. A real DAO would not have an open claim. It would pay members through payouts the council approves.</p>
-        <div class="row">
-          <button id="sim-claim" type="button" class="solid only-sim" disabled>Claim 100 test coins</button>
-          <button id="claim" type="button" class="solid only-real" disabled>Claim 100 test coins</button>
-        </div>
-        <p id="claim-status" class="status" role="status"></p>
-      </div>
-    </li>
-    <li id="step-3" class="step">
-      <span class="n" aria-hidden="true">3</span>
-      <div class="body">
-        <h3>Send some to a friend</h3>
-        <p class="only-sim">Send 10 coins to Sam. Sending does not stop the melt: it keeps running for both of you.</p>
-        <p class="only-real">Send coins to any account that has claimed. The recipient must be registered.</p>
-        <div class="row only-sim">
-          <button id="sim-send" type="button" class="solid" disabled>Send 10 coins to Sam</button>
-        </div>
-        <form id="send-form" class="only-real" novalidate>
-          <div class="field"><label for="to">Send to</label><input id="to" name="to" autocomplete="off" spellcheck="false" placeholder="friend.testnet" size="30"></div>
-          <div class="field"><label for="amount">Amount</label>
-            <div class="row"><input id="amount" name="amount" inputmode="decimal" autocomplete="off" placeholder="10" size="14"><button id="max" type="button">Max</button></div>
+  <div class="split">
+    <ol class="steps">
+      <li id="step-1" class="step">
+        <span class="n" aria-hidden="true">1</span>
+        <div class="body">
+          <h3>Get an account</h3>
+          <p class="only-sim">You get a demo account, and a friend called Sam.</p>
+          <p class="only-real">Connect a NEAR testnet wallet.</p>
+          <div class="row">
+            <button id="sim-join" type="button" class="solid only-sim">Create my demo account</button>
+            <button id="connect-step" type="button" class="solid only-real">Connect wallet</button>
           </div>
-          <div class="row"><button id="send" type="submit" class="solid" disabled>Send</button></div>
-        </form>
-        <p id="send-status" class="status" role="status"></p>
-      </div>
-    </li>
-    <li id="step-4" class="step">
-      <span class="n" aria-hidden="true">4</span>
-      <div class="body">
-        <h3>Watch it melt, and the pot grow</h3>
-        <p class="only-sim">Skip time forward to see what melting does at this demo rate.</p>
-        <p class="only-real">This is the live chain. It melts 1% every <span data-period>hour</span> while you watch.</p>
-        <div class="row only-sim">
-          <button id="ff-1" type="button">Skip 1 hour</button>
-          <button id="ff-2" type="button">Skip 1 day</button>
-          <button id="ff-3" type="button">Skip 7 days</button>
+          <p id="s1-status" class="status" role="status"></p>
         </div>
-      </div>
-    </li>
-  </ol>
+      </li>
+      <li id="step-2" class="step">
+        <span class="n" aria-hidden="true">2</span>
+        <div class="body">
+          <h3>Claim 100 test coins</h3>
+          <p>The claim button is for testing on testnet. A real DAO has no open claim; it pays members through approved proposals.</p>
+          <div class="row">
+            <button id="sim-claim" type="button" class="solid only-sim" disabled>Claim 100 test coins</button>
+            <button id="claim" type="button" class="solid only-real" disabled>Claim 100 test coins</button>
+          </div>
+          <p id="claim-status" class="status" role="status"></p>
+        </div>
+      </li>
+      <li id="step-3" class="step">
+        <span class="n" aria-hidden="true">3</span>
+        <div class="body">
+          <h3>Send some to a friend</h3>
+          <p class="only-sim">Send 10 coins to Sam. The melt keeps running for both of you.</p>
+          <p class="only-real">Send coins to an account that has claimed.</p>
+          <div class="row only-sim">
+            <button id="sim-send" type="button" class="solid" disabled>Send 10 coins to Sam</button>
+          </div>
+          <form id="send-form" class="only-real" novalidate>
+            <div class="field"><label for="to">Send to</label><input id="to" name="to" autocomplete="off" spellcheck="false" placeholder="friend.testnet" size="30"></div>
+            <div class="field"><label for="amount">Amount</label>
+              <div class="row"><input id="amount" name="amount" inputmode="decimal" autocomplete="off" placeholder="10" size="14"><button id="max" type="button">Max</button></div>
+            </div>
+            <div class="row"><button id="send" type="submit" class="solid" disabled>Send</button></div>
+          </form>
+          <p id="send-status" class="status" role="status"></p>
+        </div>
+      </li>
+      <li id="step-4" class="step">
+        <span class="n" aria-hidden="true">4</span>
+        <div class="body">
+          <h3>Watch it melt</h3>
+          <p class="only-sim">Skip ahead to see the melt at work.</p>
+          <p class="only-real">This is the live chain. It melts 1% every <span data-period>hour</span>.</p>
+          <div class="row only-sim">
+            <button id="ff-1" type="button">Skip 1 hour</button>
+            <button id="ff-2" type="button">Skip 1 day</button>
+            <button id="ff-3" type="button">Skip 7 days</button>
+          </div>
+        </div>
+      </li>
+    </ol>
 
-  <aside class="result-panel" aria-label="What your steps did">
-    <h3>What your steps did</h3>
-    <dl class="ledger result" aria-live="off">
-      <div class="line"><dt>Your balance</dt><dd class="figure-cell" id="r-balance">–</dd></div>
-      <div class="line only-sim"><dt>Sam's balance</dt><dd class="figure-cell" id="r-friend">–</dd></div>
-      <div class="line"><dt>The town pot</dt><dd class="figure-cell treasury" id="r-pot">–</dd></div>
-    </dl>
-    <p class="readout" id="r-explain"></p>
-  </aside>
+    <aside class="result-panel" aria-label="What your steps did">
+      <h3>What your steps did</h3>
+      <dl class="ledger result" aria-live="off">
+        <div class="line"><dt>Your balance</dt><dd class="figure-cell" id="r-balance">–</dd></div>
+        <div class="line only-sim"><dt>Sam's balance</dt><dd class="figure-cell" id="r-friend">–</dd></div>
+        <div class="line"><dt>The town pot</dt><dd class="figure-cell treasury" id="r-pot">–</dd></div>
+      </dl>
+      <p class="readout" id="r-explain"></p>
+    </aside>
   </div>
 </section>
-
-
 <p class="next">Want the details behind it? <a class="button solid" href="/numbers">Next: the numbers</a></p>
-
 </Base>

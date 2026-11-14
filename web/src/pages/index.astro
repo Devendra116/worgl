@@ -1,81 +1,120 @@
 ---
 import Base from "../layouts/Base.astro";
 ---
-<Base title="Wörgl: money with a shelf life, a hackathon project on NEAR testnet" description="A hackathon project on NEAR testnet. Wörgl coins melt on a fixed schedule and the melt goes to a pot the community spends. Spend it, or it flows back to the town." active="/">
-<!-- HERO -->
+<Base title="Wörgl: money with a shelf life, a hackathon project on NEAR testnet" description="Wörgl coins lose 1% on a fixed schedule, and what melts goes into a pot the community spends again. A hackathon project, live on NEAR testnet." active="/">
+
 <section class="hero" aria-labelledby="hero-title">
   <h1 id="hero-title">Money with a shelf life.</h1>
   <p class="lede">Spend it, or it flows back to the town.</p>
-  <p class="prose"><b>A hackathon project, live on NEAR testnet.</b> Wörgl's coins melt on a fixed schedule, and the melt goes into a pot the community spends. The coins have no value.</p>
-  <p class="row hero-actions">
-    <a class="button solid" href="/try">Try it in 60 seconds</a>
+  <p class="prose">Wörgl is a token on NEAR. Its coins lose 1% on a fixed schedule, and what melts goes into a pot the community spends again.</p>
+  <div class="hero-actions">
+    <a class="button solid" href="/try">Try it free</a>
     <a class="button" href="/idea">How it works</a>
-  </p>
-
-  <p class="caption"><b>Watch the number on this note fall.</b> It started at 100 coins when you opened the page, and it is melting.</p>
-  <div class="note-wrap">
-    <svg id="note" viewBox="0 0 960 420" role="img" aria-label="A sample Wörgl note. Its value counts down in real time, and a bar shows how much has melted into the town pot. Drag it sideways to move through time."></svg>
   </div>
-  <div class="why prose">
-    <p><b>Nothing is broken.</b> In this demo a note loses 1% every <span data-period>hour</span>. The lost coins are not burned: they land in the <span class="treasury">town pot</span>, the green number, where the community can spend them again.</p>
+  <p class="hero-note">Free. Runs on NEAR testnet. No wallet needed.</p>
+
+  <div class="window" aria-label="Live Wörgl note">
+    <div class="window-bar">
+      <span><i class="live-dot" aria-hidden="true"></i>Live on NEAR testnet</span>
+      <span>Demo speed: 1% per <span data-period>hour</span></span>
+    </div>
+    <div class="window-body">
+      <div class="window-note">
+        <svg id="note" viewBox="0 0 960 420" role="img" aria-label="A sample Wörgl note. Its value counts down in real time, and a bar shows how much has melted into the town pot. Drag it sideways to move through time."></svg>
+        <p class="note-caption">A sample note that started at 100 coins when you opened the page. Drag it sideways, or use the controls, to jump ahead.</p>
+        <div class="note-controls">
+          <div class="group" id="note-rate" role="group" aria-label="Melt speed">
+            <div class="seg">
+              <button type="button" data-rate="demo" aria-pressed="true">Demo speed</button>
+              <button type="button" data-rate="real" aria-pressed="false">Real speed</button>
+            </div>
+          </div>
+          <div class="group"><span class="label">Skip ahead</span><span id="note-presets" class="chips"></span></div>
+          <div>
+            <label for="note-slider" class="sr-only">Move the note through time</label>
+            <input id="note-slider" type="range" min="0" max="1000" step="1" value="0">
+          </div>
+          <p id="note-readout" class="readout"></p>
+        </div>
+      </div>
+      <div class="window-panel">
+        <p id="data-status" class="status" role="status"></p>
+        <div class="panel-stats">
+          <div class="stat"><p class="label">In the town pot</p><p class="figure-cell treasury" id="v-treasury">–</p></div>
+          <div class="stat"><p class="label">In people's hands</p><p class="figure-cell" id="v-circ">–</p></div>
+          <div class="stat"><p class="label">Can be paid out today</p><p class="figure-cell treasury" id="v-allow">–</p></div>
+        </div>
+        <div class="panel-check">
+          <p class="label">Checked in your browser</p>
+          <p class="panel-check-line" id="verify-summary">Running the checks…</p>
+          <a href="#check-title">See what is checked</a>
+        </div>
+      </div>
+    </div>
   </div>
+</section>
 
-  <div class="time-controls">
-    <div class="group" id="note-rate" role="group" aria-label="Melt rate">
-      <span class="label">Melt rate</span>
-      <button type="button" data-rate="demo" aria-pressed="true">This demo: 1% per <span data-period>hour</span></button>
-      <button type="button" data-rate="real" aria-pressed="false">Real setting: 1% per 30 days</button>
+<section class="section" aria-labelledby="rates-title">
+  <h2 id="rates-title">Two speeds</h2>
+  <p class="prose">The demo is fast so you can watch it happen. A real DAO would use the slow setting.</p>
+  <div class="notes-pair">
+    <div class="mini-note">
+      <h3>This demo</h3>
+      <p class="mini-big">1% every <span data-period>hour</span></p>
+      <p>100 coins become <b class="num" data-demo-day>78.57</b> after a day, and <b class="num" data-demo-week>18.48</b> after a week.</p>
     </div>
-    <div class="group">
-      <span class="label">Skip ahead</span>
-      <span id="note-presets" class="row"></span>
+    <div class="mini-note">
+      <h3>Real setting</h3>
+      <p class="mini-big">1% every month</p>
+      <p>100 coins become <b class="num" data-real-month>99.00</b> after a month, and <b class="num" data-real-year>88.49</b> after a year.</p>
     </div>
-    <div>
-      <label for="note-slider">Move the note through time</label>
-      <input id="note-slider" type="range" min="0" max="1000" step="1" value="0">
-      <p class="hint">You can also drag the note sideways.</p>
-    </div>
-    <p id="note-readout" class="readout"></p>
   </div>
 </section>
 
-
-<!-- IN PLAIN WORDS -->
-<section class="section" aria-labelledby="plain-title">
-  <h2 id="plain-title">In plain words</h2>
-  <ol class="plain-steps big">
-    <li><b>There is one pot of 1,000,000 coins.</b> We call it the town pot. At the start, all the coins are in it.</li>
-    <li><b>Coins you hold slowly shrink.</b> Every balance loses 1% on a fixed schedule: 1% a month in real life, 1% every <span data-period>hour</span> in this demo so you can watch it happen.</li>
-    <li><b>What you lose is not burned.</b> It goes back into the pot, and a group vote can pay it out to people again. Spend your coins, and they keep going round.</li>
-  </ol>
-  <h3>Three words you will see</h3>
-  <dl class="terms">
-    <div><dt>NEAR</dt><dd>A blockchain: a shared record that no single company controls.</dd></div>
-    <div><dt>Testnet</dt><dd>A practice version of NEAR where nothing costs or is worth real money. This project lives there.</dd></div>
-    <div><dt>DAO</dt><dd>A group that makes decisions by voting on a blockchain. Here, three people vote on who gets paid from the pot, and two must agree.</dd></div>
-  </dl>
+<section class="section" aria-labelledby="how-title">
+  <h2 id="how-title">How it works</h2>
+  <div class="loop-row">
+    <figure class="figure">
+      <svg id="loop" viewBox="0 0 480 430" role="img" aria-label="A loop. The town pot pays people through payouts. People trade with each other. Everything melts back to the town pot."></svg>
+    </figure>
+    <ol class="plain-steps big">
+      <li><b>The town pot pays people.</b> A group vote, called a DAO, approves the payouts.</li>
+      <li><b>People spend and trade.</b> Holding costs a little, so coins are made to be used.</li>
+      <li><b>Everything melts back.</b> Each balance loses 1% on a schedule, and the loss returns to the pot.</li>
+    </ol>
+  </div>
+  <p class="callout">The DAO decides who gets paid. The contract decides how much can be paid.</p>
 </section>
 
-<!-- EXPLORE -->
-<section class="section" aria-labelledby="explore-title">
-  <h2 id="explore-title">Where to next</h2>
-  <ul class="explore">
-    <li><a href="/idea">The idea</a><span>A mayor, a town and a 1% stamp in 1932, and the same loop on NEAR.</span></li>
-    <li><a href="/try">Try it</a><span>Four steps, with a simulated account or your own testnet wallet.</span></li>
-    <li><a href="/numbers">The numbers</a><span>1,000,000 coins, who controls them, and live figures from the contract.</span></li>
-    <li><a href="/maths">The maths</a><span>A calculator, a chart, and the proof for people who check.</span></li>
-    <li><a href="/faq">Questions</a><span>Is it a memecoin? Can it be cheated? What it doesn't do.</span></li>
-  </ul>
+<section class="section" aria-labelledby="use-title">
+  <h2 id="use-title">What it is for</h2>
+  <p class="prose">Coins that expire suit money that is meant to be used. Both examples use the real setting, 1% a month.</p>
+  <div class="uses">
+    <div class="use">
+      <h3>Grants that come back if unspent</h3>
+      <p>A fund sends a team 5,000 coins. If they sit untouched for three months, <b class="num" data-grant-left>4,851.50</b> are left and <b class="num" data-grant-back>148.50</b> are back in the pot for the next grant.</p>
+    </div>
+    <div class="use">
+      <h3>Community and event credits</h3>
+      <p>Hand out 20 credits for a street festival. A month later <b class="num" data-credit-month>19.80</b> are left, and after six months <b class="num" data-credit-six>18.83</b>, so they are worth using soon.</p>
+    </div>
+  </div>
 </section>
 
-<section class="section" aria-labelledby="live-title">
-  <h2 id="live-title">Live on NEAR testnet right now</h2>
-  <p id="data-status" class="status" role="status"></p>
-  <dl class="ledger" aria-label="Live figures from the contract">
-    <div class="line"><dt>The town pot</dt><dd class="figure-cell treasury" id="v-treasury">–</dd><dd class="gloss">Everything that has melted, plus what nobody has claimed yet.</dd></div>
-    <div class="line"><dt>In people's hands</dt><dd class="figure-cell" id="v-circ">–</dd><dd class="gloss">Held by accounts, and melting. The pot plus this is always exactly 1,000,000.</dd></div>
-  </dl>
-  <p><a href="/numbers">See all the live figures and recent activity</a></p>
+<section class="section" aria-labelledby="check-title">
+  <h2 id="check-title">Check it yourself</h2>
+  <p class="prose">Everything on this page is read from the contract on NEAR. Your browser recomputes the key numbers with its own copy of the maths.</p>
+  <ul class="verify" id="verify-out" aria-live="polite"><li><span class="pass">…</span><span>Reading the contract</span></li></ul>
+  <div class="row">
+    <button id="verify-run" type="button">Run the checks again</button>
+    <a href="/maths">How the maths works</a>
+  </div>
+  <p class="hint">Contract <a id="home-token" href="#"></a>, run by the DAO <a id="home-dao" href="#"></a>. The code is on <a id="home-repo" href="#">GitHub</a>.</p>
 </section>
 
+<section class="section end-cta" aria-labelledby="cta-title">
+  <h2 id="cta-title">Try it in 60 seconds</h2>
+  <p class="prose">Claim some test coins, send a few to a friend, and watch the pot grow. No wallet needed.</p>
+  <div class="hero-actions"><a class="button solid" href="/try">Try it free</a><a class="button" href="/faq">Read the FAQ</a></div>
+</section>
 </Base>

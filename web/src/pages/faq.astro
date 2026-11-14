@@ -2,37 +2,30 @@
 import Base from "../layouts/Base.astro";
 ---
 <Base title="Questions and limits · Wörgl" description="What people ask about Wörgl, a hackathon project on NEAR testnet, and what it does not do." active="/faq">
-<!-- FAQ -->
-<section class="section lead-section" id="faq" aria-labelledby="faq-title">
+<section class="section lead-section" aria-labelledby="faq-title">
   <h1 id="faq-title" class="page-title">Questions people ask</h1>
   <div class="faq">
-    <details open><summary>What do NEAR, testnet and DAO mean?</summary><p><b>NEAR</b> is a blockchain, a shared record no single company controls. <b>Testnet</b> is a practice version of it where nothing costs or is worth real money, and this project lives there. A <b>DAO</b> is a group that decides by voting on a blockchain. Here it has three members, and two must agree before anyone is paid from the pot.</p></details>
+    <details open><summary>What do NEAR, testnet and DAO mean?</summary><p><b>NEAR</b> is a blockchain, a shared record no single company controls. <b>Testnet</b> is its practice version, where nothing costs or is worth real money. A <b>DAO</b> decides by voting on a blockchain. Here it has three members, and two must agree before anyone is paid.</p></details>
     <details><summary>Is this a memecoin?</summary><p>It was built for the memecoin track of NEAR HACKATHON, but it is not for speculating. There is no price and no way to buy coins. The meme is the idea: money that expires.</p></details>
-    <details><summary>Why would anyone want money that shrinks?</summary><p>Because the loss is small and goes back to the community. If holding costs a little, a coin is more useful spent than kept, and what melts funds the next payout. It suits budgets, grants and event credits, which are meant to be used.</p></details>
-    <details><summary>Who decides who gets paid?</summary><p>A DAO. It has three council members and a payout needs two of them. The contract then enforces a cap of 10% of the pot per day, whatever the DAO votes. The DAO cannot touch anyone's balance or change the melt.</p></details>
-    <details><summary>Why is there a claim button?</summary><p>It is there for testing on testnet, so judges and visitors can try Wörgl without asking anyone for coins. A real DAO would not have an open claim. It would pay members out through proposals the council approves, and the contract's daily cap would still apply.</p></details>
-    <details><summary>Can the test faucet be cheated?</summary><p>Yes, a little. Accounts are free, so one person can make many accounts and claim many times. The daily cap limits the damage. That is one more reason a real deployment would pay out through the DAO instead.</p></details>
-    <details><summary>What happens when the demo runs out?</summary><p>This copy melts fast on purpose. It stays accurate for about <span data-accurate>4.5 months</span>. After that, large payouts start to fail, then claims stop, and finally every balance reads zero. The numbers page shows the exact dates, worked out from the contract. At the real rate of 1% a month it stays accurate for centuries.</p></details>
-    <details><summary>Is it safe to use?</summary><p>It is a testnet demo with no value, and it has not been audited. The contract has no cross-contract calls and its supply is fixed, but treat it as a prototype.</p></details>
+    <details><summary>Why would anyone want money that shrinks?</summary><p>Because the loss is small and goes back to the community. If holding costs a little, a coin is more useful spent than kept. It suits budgets, grants and event credits, which are meant to be used.</p></details>
+    <details><summary>Who decides who gets paid?</summary><p>The DAO. The contract then enforces a cap of 10% of the pot per day, whatever the DAO votes. The DAO cannot touch anyone's balance or change the melt.</p></details>
+    <details><summary>Why is there a claim button?</summary><p>For testing on testnet, so visitors can try Wörgl without asking anyone for coins. A real DAO would not have an open claim. It would pay members through proposals the council approves.</p></details>
+    <details><summary>Can the test faucet be cheated?</summary><p>A little. Accounts are free, so one person can claim many times. The daily cap limits the damage, which is one more reason a real deployment would pay out through the DAO.</p></details>
+    <details><summary>What happens when the demo runs out?</summary><p>This copy melts fast on purpose. It stays accurate for about <span data-accurate>4.5 months</span>. After that, large payouts fail, then claims stop, and finally every balance reads zero. The numbers page shows the exact dates. At the real rate of 1% a month it lasts for centuries.</p></details>
   </div>
 </section>
 
-<!-- LIMITS -->
 <section class="section" aria-labelledby="limits-title">
-  <h2 id="limits-title">What it doesn't do</h2>
+  <h2 id="limits-title">Good to know</h2>
   <ul class="plain">
-    <li><b>It is a hackathon project on testnet.</b> Built for NEAR HACKATHON. Nothing here is real money, and nothing has been audited.</li>
-    <li><b>The demo melts fast.</b> This copy melts 1% every <span data-period>hour</span> so you can watch it. At that rate it stays accurate for about <span data-accurate>4.5 months</span>, then large payouts and claims stop and balances read zero. At the real rate of 1% a month, the maths stays precise for centuries.</li>
-    <li><b>The test faucet is not sybil-resistant.</b> Accounts are free, so one person can make many accounts and claim many times. The daily cap limits the damage; it does not stop it. Any vote that counted token holders would have the same flaw.</li>
-    <li><b>The DAO is the only check on who is paid.</b> The contract enforces the daily cap and nothing else about recipients.</li>
-    <li><b>No <code>ft_transfer_call</code>.</b> The token cannot be sent into contracts that need a callback.</li>
-    <li id="key-limit"><b>Whoever holds a full-access key on the token account can replace the code.</b> <span id="key-status">Checking this account's keys…</span></li>
-    <li><b>Balances change without events.</b> Explorers and wallets show the new balance only when they read it again.</li>
-    <li><b>Not audited.</b> Testnet only. The coins have no value.</li>
+    <li><b>This is a hackathon project on testnet.</b> The coins have no value, and the code has not been audited.</li>
+    <li><b>The demo runs at a fast speed.</b> 1% every <span data-period>hour</span>, so you can watch it. The real setting is 1% a month.</li>
+    <li><b>The test faucet is open to everyone.</b> Accounts are free, so one person can claim many times. A real DAO would pay out through approved proposals instead.</li>
+    <li><b>The DAO chooses who is paid.</b> The contract enforces the daily cap; the council decides the recipients.</li>
+    <li><b>Coins are not yet usable inside other contracts.</b> The token does not support <code>ft_transfer_call</code>.</li>
+    <li id="key-limit"><b>The contract can still be replaced.</b> <span id="key-status">Checking this account's keys…</span></li>
+    <li><b>Balances change with the clock.</b> Wallets and explorers show the new balance when they read it again.</li>
   </ul>
 </section>
-
-
-<p class="next"><a class="button solid" href="/try">Try it now</a></p>
-
+<p class="next">Ready? <a class="button solid" href="/try">Try it now</a></p>
 </Base>

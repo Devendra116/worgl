@@ -29,6 +29,7 @@ export function initNote({ demoFactor }) {
   const issuedAt = performance.now();
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  // Wide rectangular note on larger screens, a portrait version on phones.
   const phone = matchMedia("(max-width: 40rem)");
   let view = build(svg, phone.matches);
   phone.addEventListener("change", () => { view = build(svg, phone.matches); render(); });
@@ -98,10 +99,10 @@ export function initNote({ demoFactor }) {
     const per = secondsPerPercent(factor);
     const leftFrac = Number(value) / Number(FACE);
     meter.setLeft(leftFrac);
-    parts.sub.textContent = parts.subShort ? `Loses 1% every ${describeEvery(per)}.` : `This sample note loses 1% every ${describeEvery(per)}. What it loses goes to the town pot.`;
+    parts.sub.textContent = parts.subShort ? `Loses 1% every ${describeEvery(per)}.` : `Loses 1% every ${describeEvery(per)}. The loss goes to the town pot.`;
     parts.when.textContent = offset === 0n ? "Issued when you opened this page" : `${describeOffset(offset)}, at the ${RATES[rate].label}`;
     $("note-readout").textContent = offset === 0n
-      ? `The sample note started at 100 coins and has melted ${formatCoins(melted, 4)} since you opened this page. That amount went to the town pot.`
+      ? `So far ${formatCoins(melted, 4)} coins have melted into the town pot.`
       : `${describeOffset(offset)} at the ${RATES[rate].label}: ${formatCoins(value, 2)} coins left, ${formatCoins(melted, 2)} went to the town pot.`;
   }
 
@@ -122,7 +123,7 @@ function describeOffset(secs) {
 // figures stay readable at 360px.
 function build(svg, narrow) {
   svg.replaceChildren();
-  svg.setAttribute("viewBox", narrow ? "0 0 400 520" : "0 0 960 420");
+  svg.setAttribute("viewBox", narrow ? "0 0 400 450" : "0 0 960 420");
   drawBackground(svg, narrow);
   const parts = drawText(svg, narrow);
   const meter = drawMeter(svg, narrow);
@@ -130,7 +131,7 @@ function build(svg, narrow) {
 }
 
 function drawBackground(svg, narrow) {
-  const W = narrow ? 400 : 960, H = narrow ? 520 : 420;
+  const W = narrow ? 400 : 960, H = narrow ? 450 : 420;
   svg.append(el("rect", { x: 0, y: 0, width: W, height: H, fill: "var(--note)" }));
   // Guilloche rosette: overlapping rotated ellipses, as on security paper.
   const g = el("g", { class: "guilloche" });
@@ -150,15 +151,15 @@ function drawText(svg, narrow) {
     return e;
   };
   if (!narrow) {
-    t("sans", 330, 74, 32, "Wörgl note", { "font-weight": 600 });
-    const sub = t("", 330, 104, 17, "", { "font-style": "italic" });
-    const when = t("faded", 930, 74, 16, "", { "text-anchor": "end" });
-    const value = t("value", 326, 196, 92, "");
-    t("sans", 330, 236, 20, "WORGL", { "font-weight": 500 });
-    t("faded", 330, 268, 17, "Melted");
-    const melted = t("melted", 640, 268, 20, "", { "text-anchor": "end" });
-    t("faded", 330, 296, 17, "Went to the town pot");
-    const received = t("received", 640, 296, 20, "", { "text-anchor": "end" });
+    t("sans", 330, 78, 40, "Wörgl note", { "font-weight": 600 });
+    const sub = t("", 330, 112, 21, "", { "font-style": "italic" });
+    const when = t("faded", 930, 78, 19, "", { "text-anchor": "end" });
+    const value = t("value", 326, 206, 100, "");
+    t("sans", 330, 248, 26, "WORGL", { "font-weight": 500 });
+    t("faded", 330, 284, 22, "Melted");
+    const melted = t("melted", 700, 284, 26, "", { "text-anchor": "end" });
+    t("faded", 330, 318, 22, "Went to the town pot");
+    const received = t("received", 700, 318, 26, "", { "text-anchor": "end" });
     return { sub, when, value, melted, received, subShort: false };
   }
   t("sans", 30, 58, 30, "Wörgl note", { "font-weight": 600 });
@@ -175,15 +176,14 @@ function drawText(svg, narrow) {
 
 /** A bar that shows how much of the note is left (ink) and how much has melted into the town pot (carmine). */
 function drawMeter(svg, narrow) {
-  const x = narrow ? 30 : 50, w = narrow ? 340 : 860, y = narrow ? 360 : 332, h = narrow ? 18 : 20;
+  const x = narrow ? 30 : 50, w = narrow ? 340 : 860, y = narrow ? 360 : 340, h = narrow ? 18 : 22;
   const left = el("rect", { class: "meter-left", x, y, width: w, height: h });
   const melted = el("rect", { class: "meter-melted", x: x + w, y, width: 0, height: h });
   svg.append(left, melted);
   svg.append(el("rect", { class: "meter-frame", x, y, width: w, height: h }));
-  const lab = (cls, ax, anchor, text) => { const e = el("text", { class: cls, x: ax, y: y + h + 24, "font-size": narrow ? 15 : 17, "text-anchor": anchor }, text); svg.append(e); return e; };
+  const lab = (cls, ax, anchor, text) => { const e = el("text", { class: cls, x: ax, y: y + h + 24, "font-size": narrow ? 15 : 21, "text-anchor": anchor }, text); svg.append(e); return e; };
   const leftText = lab("faded", x, "start", "");
   const meltedText = lab("melted", x + w, "end", "");
-  if (narrow) svg.append(el("text", { class: "faded", x: 30, y: 492, "font-size": 13 }, "The bar shows how much of the note is left."));
   return {
     setLeft(frac) {
       const f = Math.max(0, Math.min(1, frac));
@@ -193,7 +193,7 @@ function drawMeter(svg, narrow) {
       melted.setAttribute("width", String(lostPx));
       const digits = 1 - f < 0.0001 ? 4 : 2;   // show more decimals while the loss is still tiny
       leftText.textContent = `${(f * 100).toFixed(digits)}% left`;
-      meltedText.textContent = `${((1 - f) * 100).toFixed(digits)}% melted into the town pot`;
+      meltedText.textContent = `${((1 - f) * 100).toFixed(digits)}% melted`;
     },
   };
 }

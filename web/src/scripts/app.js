@@ -97,6 +97,7 @@ async function refresh() {
     sync = { chainNs: BigInt(stats.block_timestamp_ns), perf: performance.now(), stats, account, stale: false };
     store.set("last", { stats, savedAt: Date.now() });
     setStatus("data-status", "");
+    if (has("verify-out")) runVerify();
   } catch (e) {
     const last = store.get("last");
     if (!params) {
@@ -125,19 +126,20 @@ async function onParams(p) {
   renderNotice();
   const dl = `${EXPLORER}/address/${p.governor}`;
   $("dao-link").href = dl; $("f-dao").href = dl; $("f-dao").textContent = p.governor;
+  if (has("home-dao")) { $("home-dao").href = dl; $("home-dao").textContent = p.governor; }
 }
 
 function renderRules() {
   const per = secondsPerPercent(BigInt(params.factor));
   const isDemo = per < 7 * 86400;
   const rows = [
-    ledgerLine("Total supply", "1,000,000 WORGL", "Fixed. Nothing is ever minted."),
-    ledgerLine("Melt rate", `1% every ${describeEvery(per)}`, isDemo ? "This is the demo setting. The real setting is 1% every 30 days. It is fixed when the contract starts." : "Fixed when the contract starts."),
-    ledgerLine("Test faucet", "100 WORGL, once per account", `Testnet only, so anyone can try it. A real DAO would pay out through proposals instead. A new account pays a storage deposit of ${formatNear(BigInt(params.storage_cost), 5)} NEAR; the contract never pays storage for anyone.`),
-    ledgerLine("Daily payout cap", `${params.daily_cap_bps / 100}% of the town pot`, "Measured at the start of each UTC day. Faucet claims and DAO payouts share it."),
+    ledgerLine("Total supply", "1,000,000 WORGL", "Nothing is ever minted."),
+    ledgerLine("Melt rate", `1% every ${describeEvery(per)}`, isDemo ? "The demo setting. The real setting is 1% every 30 days. Fixed when the contract starts." : "Fixed when the contract starts."),
+    ledgerLine("Test faucet", "100 WORGL, once per account", `Testnet only. A real DAO pays out through proposals. A new account pays a ${formatNear(BigInt(params.storage_cost), 5)} NEAR storage deposit.`),
+    ledgerLine("Daily payout cap", `${params.daily_cap_bps / 100}% of the town pot`, "Measured at the start of each UTC day. Test claims and payouts share it."),
   ];
   const gov = link(params.governor, `${EXPLORER}/address/${params.governor}`);
-  rows.push(ledgerLine("Governor", gov, "A Sputnik DAO. Set once, it can call pay_out and nothing else."));
+  rows.push(ledgerLine("Governor", gov, "A Sputnik DAO. It can call pay_out and nothing else."));
   $("rules").replaceChildren(...rows);
 }
 
@@ -145,18 +147,85 @@ function renderNotice() {
   const factor = BigInt(params.factor);
   const per = secondsPerPercent(factor);
   const isDemo = per < 7 * 86400;
-  const now = Date.now();
-  const { accurate, claimsStop, zero } = deadlines;
-  let text = isDemo
+  const { accurate } = deadlines;
+  $("notice").textContent = (isDemo
     ? `This demo melts 1% every ${describeEvery(per)} so you can watch it. The real setting is 1% a month. `
-    : `This copy melts 1% every ${describeEvery(per)}, the real setting. `;
-  if (accurate == null) text += "At this rate the maths stays accurate for centuries.";
-  else if (now < accurate) text += `This copy stays accurate for every amount until about ${fmtDate(accurate)}. After that, large payouts start to fail; claims of 100 coins keep working until about ${fmtDate(claimsStop)}, and from about ${fmtDate(zero)} every balance reads zero.`;
-  else if (now < claimsStop) text += `This copy is past its accurate period: large payouts now fail. Claims of 100 coins keep working until about ${fmtDate(claimsStop)}, and from about ${fmtDate(zero)} every balance reads zero.`;
-  else if (now < zero) text += `Claims and payouts have stopped. From about ${fmtDate(zero)} every balance reads zero.`;
-  else text += "This copy has fully melted: every balance now reads zero.";
-  $("notice").textContent = text;
+    : `This copy melts 1% every ${describeEvery(per)}, the real setting. `)
+    + (accurate == null ? "At this rate the maths stays accurate for centuries." : "The red line marks today.");
+  renderLife();
   applyPeriodText(per);
+  fillRates(factor);
+}
+
+/** The lifetime bar: accurate, then claims only, then zero. Positions come from the contract's factor and start time. */
+function renderLife() {
+  const { accurate, claimsStop, zero } = deadlines;
+  const box = $("life");
+  if (accurate == null || claimsStop == null || zero == null) { box.hidden = true; return; }
+  box.hidden = false;
+  const start = Number(BigInt(params.start_ns) / 1_000_000n);
+  const span = zero - start;
+  const pct = (ms) => `${Math.max(0, Math.min(100, ((ms - start) / span) * 100)).toFixed(2)}%`;
+  $("life-a").style.width = pct(accurate);
+  $("life-b").style.width = `${((claimsStop - accurate) / span * 100).toFixed(2)}%`;
+  $("life-c").style.width = `${((zero - claimsStop) / span * 100).toFixed(2)}%`;
+  $("life-now").style.left = pct(Date.now());
+  $("life-d1").textContent = fmtDate(accurate);
+  $("life-d2").textContent = fmtDate(claimsStop);
+  $("life-d3").textContent = fmtDate(zero);
+}
+
+/** What 100 coins become, at the demo and the real speed. Computed with the same integer maths as the contract. */
+function fillRates(demoFactor) {
+  const left = (factor, secs) => formatCoinsRound((100n * ONE * rpow(factor, secs)) / RAY, 2);
+  const put = (sel, text) => document.querySelectorAll(sel).forEach((e) => { e.textContent = text; });
+  put("[data-demo-day]", left(demoFactor, 86_400n));
+  put("[data-demo-week]", left(demoFactor, 7n * 86_400n));
+  put("[data-real-month]", left(REAL_FACTOR, MONTH));
+  put("[data-real-year]", left(REAL_FACTOR, YEAR));
+}
+
+/** The two example uses on the home page, worked out at the real setting with the contract's integer maths. */
+function fillUseCases() {
+  const after = (coins, secs) => (coins * ONE * rpow(REAL_FACTOR, secs)) / RAY;
+  const put = (sel, text) => document.querySelectorAll(sel).forEach((e) => { e.textContent = text; });
+  const grant = after(5000n, 3n * MONTH);
+  put("[data-grant-left]", formatCoinsRound(grant, 2));
+  put("[data-grant-back]", formatCoinsRound(5000n * ONE - grant, 2));
+  put("[data-credit-month]", formatCoinsRound(after(20n, MONTH), 2));
+  put("[data-credit-six]", formatCoinsRound(after(20n, 6n * MONTH), 2));
+}
+
+/** Recompute the contract's key numbers in the browser, from one pinned block, and say what matches. */
+function runVerify() {
+  const list = $("verify-out");
+  if (!sync || !params || sync.stale) {
+    list.replaceChildren(verifyRow(null, "Waiting for the contract to answer. The checks run as soon as it does."));
+    return;
+  }
+  const s = sync.stats;
+  const factor = BigInt(params.factor), start = BigInt(params.start_ns), at = BigInt(s.block_timestamp_ns);
+  const index = indexAt(factor, start, at);
+  const circ = circulatingOf(BigInt(s.total_shares), index);
+  const cap = (BigInt(s.day_start_treasury) * BigInt(params.daily_cap_bps)) / 10_000n;
+  const rows = [
+    [BigInt(s.index) === index, "The melt factor the contract reports matches the maths in your browser, to the last digit."],
+    [BigInt(s.circulating) === circ, "The coins people hold equal their shares times that factor."],
+    [BigInt(s.treasury) + BigInt(s.circulating) === TOTAL_SUPPLY, `The pot plus the coins people hold is exactly ${formatCoins(TOTAL_SUPPLY, 0)}.`],
+    [BigInt(s.day_cap) === cap, `Today's payout limit is exactly ${params.daily_cap_bps / 100}% of the pot at the start of the day.`],
+  ];
+  list.replaceChildren(...rows.map(([ok, text]) => verifyRow(ok, text)));
+  const passed = rows.filter(([ok]) => ok).length;
+  $("verify-summary").textContent = passed === rows.length ? `All ${rows.length} checks pass` : `${passed} of ${rows.length} checks pass`;
+}
+function verifyRow(ok, text) {
+  const li = document.createElement("li");
+  const tag = document.createElement("span");
+  tag.className = ok === false ? "fail" : "pass";
+  tag.textContent = ok === null ? "…" : ok ? "Pass" : "Differs";
+  const msg = document.createElement("span"); msg.textContent = text;
+  li.append(tag, msg);
+  return li;
 }
 
 /** Fill the "[data-period]" and "[data-accurate]" spans in the page copy from the contract's own numbers. */
@@ -189,7 +258,7 @@ function renderAll(force = false) {
   $("v-circ").textContent = formatCoins(f.circ, 4);
   const cap = BigInt(s.day_cap), left = BigInt(s.day_remaining);
   $("v-allow").textContent = formatCoins(left, 2);
-  $("v-allow-note").textContent = `of ${formatCoins(cap, 2)} today. The limit resets at 00:00 UTC. Test claims and DAO payouts share it.`;
+  $("v-allow-note").textContent = `The daily limit is ${formatCoins(cap, 2)} and resets at 00:00 UTC.`;
   $("v-index").textContent = fraction(f.idx);
   $("account").textContent = accountId ?? "No wallet connected";
   $("connect").textContent = accountId ? "Disconnect" : "Connect wallet";
@@ -562,10 +631,14 @@ $("who-all").addEventListener("click", () => { $("who-input").value = ""; setWho
 // ---------------------------------------------------------------- start
 $("f-token").href = `${EXPLORER}/address/${TOKEN_ID}`; $("f-token").textContent = TOKEN_ID;
 $("f-repo").href = REPO;
+if (has("home-token")) { $("home-token").href = `${EXPLORER}/address/${TOKEN_ID}`; $("home-token").textContent = TOKEN_ID; $("home-repo").href = REPO; }
 $("link-tests").href = `${REPO}/blob/main/contract/src/tests.rs`;
 $("link-math").href = `${REPO}/blob/main/contract/src/math.rs`;
 if (has("loop")) drawLoop();
 if (has("shelf")) drawShelfLife();
+fillRates(DEMO_FACTOR);
+fillUseCases();
+if (has("verify-run")) $("verify-run").addEventListener("click", () => { runVerify(); });
 setMode("sim", false);
 initCalculator();
 if (has("chart")) drawChart($("chart")).catch(() => { $("chart-fallback").hidden = false; });

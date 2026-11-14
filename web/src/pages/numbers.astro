@@ -2,36 +2,42 @@
 import Base from "../layouts/Base.astro";
 ---
 <Base title="The numbers · Wörgl" description="1,000,000 coins, who controls them, and live figures read from the contract on NEAR testnet." active="/numbers">
-<!-- THE NUMBERS -->
-<section class="section lead-section" id="numbers" aria-labelledby="numbers-title">
+<section class="section lead-section" aria-labelledby="numbers-title">
   <h1 id="numbers-title" class="page-title">The numbers</h1>
-  <div class="prose">
-    <p><b>1,000,000 coins exist. Ever.</b> Nobody can mint more, and nobody can change the rules below once the contract starts.</p>
+  <p class="prose"><b>1,000,000 coins exist, ever.</b> Nobody can mint more, and nobody can change the rules once the contract starts.</p>
+
+  <h2 style="margin-top:var(--s7)">Where the coins are now</h2>
+  <p id="data-status" class="status" role="status"></p>
+  <div class="stats">
+    <div class="stat"><p class="label">In the town pot</p><p class="figure-cell treasury" id="v-treasury">–</p></div>
+    <div class="stat"><p class="label">In people's hands</p><p class="figure-cell" id="v-circ">–</p></div>
+    <div class="stat"><p class="label">Can still be paid out today</p><p class="figure-cell treasury" id="v-allow">–</p></div>
   </div>
-  <dl class="ledger">
-    <div class="line"><dt>Where coins start</dt><dd class="gloss">All 1,000,000 begin in the town pot.</dd></div>
-    <div class="line"><dt>How they get out</dt><dd class="gloss">Through payouts the DAO council approves, up to 10% of the pot per day. For testing on testnet there is also a one-time faucet (100 coins per account) that counts against the same cap. A real DAO would not have one.</dd></div>
-    <div class="line"><dt>How they come back</dt><dd class="gloss">Every balance melts on a fixed schedule: 1% a month in the real setting. What melts returns to the pot.</dd></div>
+  <p class="hint"><span id="v-allow-note"></span> One starting coin is worth <b class="num" id="v-index">–</b> now. The town pot is also called the treasury in the contract.</p>
+</section>
+
+
+<section class="section" aria-labelledby="move-title">
+ <div class="two-col">
+  <div>
+  <h2 id="move-title">How the coins move</h2>
+  <dl class="ledger plain">
+    <div class="line"><dt>They start</dt><dd class="gloss">All 1,000,000 are in the town pot.</dd></div>
+    <div class="line"><dt>They go out</dt><dd class="gloss">Through payouts the DAO council approves, up to 10% of the pot a day. For testing there is also a one-time faucet of 100 coins per account, under the same limit.</dd></div>
+    <div class="line"><dt>They come back</dt><dd class="gloss">Every balance melts on a fixed schedule, and what melts returns to the pot.</dd></div>
     <div class="line"><dt>Who is in charge</dt><dd class="gloss">A DAO of three council members, two of whom must approve a payout. The contract sets the limits.</dd></div>
   </dl>
-
-  <h3>What 100 coins become, at the real rate</h3>
-  <table class="shelf" id="shelf"><caption class="sr-only">A 100-coin note over time at the real melt rate</caption></table>
-
-  <h3>Live on the testnet token, right now</h3>
-  <p id="data-status" class="status" role="status"></p>
-  <dl class="ledger" aria-label="Live figures from the contract">
-    <div class="line"><dt>The town pot</dt><dd class="figure-cell treasury" id="v-treasury">–</dd><dd class="gloss">Everything that has melted, plus what nobody has claimed yet. It pays the faucet and the DAO's payouts. In the contract it is the treasury.</dd></div>
-    <div class="line"><dt>In people's hands</dt><dd class="figure-cell" id="v-circ">–</dd><dd class="gloss">Held by accounts, and melting. The pot plus this is always exactly 1,000,000.</dd></div>
-    <div class="line"><dt>Can still be paid out today</dt><dd class="figure-cell treasury" id="v-allow">–</dd><dd class="gloss" id="v-allow-note"></dd></div>
-    <div class="line"><dt>What 1 starting coin is worth</dt><dd class="figure-cell" id="v-index">–</dd><dd class="gloss">This falls every second. It is the one number the melt changes.</dd></div>
-  </dl>
-  <p class="notice" id="notice"></p>
-
-  <h3>The rules, read from the contract</h3>
+  </div>
+  <div>
+  <h2 id="rules-title">The rules, read from the contract</h2>
   <dl class="ledger rules" id="rules"><div class="line"><dt>Loading the rules</dt><dd class="figure-cell">…</dd></div></dl>
+  </div>
+ </div>
+</section>
 
-  <div class="town-grid" style="margin-top:2.5rem">
+<section class="section" aria-labelledby="act-title">
+  <h2 id="act-title" class="sr-only">Activity</h2>
+  <div class="two-col">
     <div>
       <h3 style="margin-top:0">Recent activity</h3>
       <ul class="log" id="activity"><li>Loading recent activity…</li></ul>
@@ -43,8 +49,22 @@ import Base from "../layouts/Base.astro";
     </div>
   </div>
 </section>
-
-
-<p class="next">Want to check how the balance is worked out? <a class="button solid" href="/maths">Next: the maths</a></p>
-
+<section class="section" aria-labelledby="life-title">
+  <details class="proof">
+    <summary id="life-title">How long this demo copy runs</summary>
+    <p class="prose" id="notice"></p>
+    <div class="life" id="life">
+      <div class="life-track" aria-hidden="true">
+        <span class="life-a" id="life-a"></span><span class="life-b" id="life-b"></span><span class="life-c" id="life-c"></span>
+        <i class="life-now" id="life-now"></i>
+      </div>
+      <ol class="life-marks">
+        <li><i class="life-sw life-a"></i><b id="life-d1">–</b>Accurate for every amount until then</li>
+        <li><i class="life-sw life-b"></i><b id="life-d2">–</b>100-coin claims still work until then</li>
+        <li><i class="life-sw life-c"></i><b id="life-d3">–</b>Every balance reads zero from then</li>
+      </ol>
+    </div>
+  </details>
+</section>
+<p class="next">Want to check how a balance is worked out? <a class="button solid" href="/maths">Next: the maths</a></p>
 </Base>
