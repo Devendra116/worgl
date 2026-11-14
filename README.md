@@ -9,11 +9,11 @@
 A memecoin on NEAR where every balance melts on a fixed schedule,<br>
 and the melt funds a treasury that a DAO pays out again.
 
-[![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-16202C?style=flat-square)](https://testnet.nearblocks.io/address/worgl-demo.testnet)
+[![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-16202C?style=flat-square)](https://testnet.nearblocks.io/address/worgl-token.testnet)
 [![NEAR HACKATHON](https://img.shields.io/badge/NEAR%20HACKATHON-memecoins%20track-B0243A?style=flat-square)](https://nearhackathon.com)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2F6A35?style=flat-square)](LICENSE)
 
-[Token on NearBlocks](https://testnet.nearblocks.io/address/worgl-demo.testnet) ·
+[Token on NearBlocks](https://testnet.nearblocks.io/address/worgl-token.testnet) ·
 [DAO on NearBlocks](https://testnet.nearblocks.io/address/devworgl-dao.sputnikv2.testnet) ·
 [Source](https://github.com/Devendra116/worgl) ·
 [@devendra_116](https://x.com/devendra_116)
@@ -40,7 +40,7 @@ and the melt funds a treasury that a DAO pays out again.
 | **Name / symbol** | Wörgl / `WORGL`, 18 decimals |
 | **Supply** | 1,000,000 coins. Fixed. Nothing is ever minted. |
 | **Melt rate** | Demo: **1% per hour** (so you can watch it). Intended real setting: **1% per month**. Chosen once at deployment, never changeable. |
-| **Token contract** | [`worgl-demo.testnet`](https://testnet.nearblocks.io/address/worgl-demo.testnet), Rust, `near-sdk` 5.30.1 |
+| **Token contract** | [`worgl-token.testnet`](https://testnet.nearblocks.io/address/worgl-token.testnet), Rust, `near-sdk` 5.30.1 |
 | **Governor** | Any account chosen at deployment, normally a DAO of your choice with **any approval rule**. It can call exactly one method, `pay_out`. The demo deployment uses the Sputnik DAO [`devworgl-dao.sputnikv2.testnet`](https://testnet.nearblocks.io/address/devworgl-dao.sputnikv2.testnet) purely as an example; the token does not care how the governor decides. |
 | **Payout limit** | At most **10% of the treasury per UTC day**, enforced by the contract. |
 | **Standards** | NEP-141 core (`ft_transfer`, `ft_balance_of`, `ft_total_supply`), NEP-145 storage management, NEP-148 metadata. No `ft_transfer_call`, by design. |
@@ -97,7 +97,7 @@ Open <http://localhost:4321/>. You see a banknote whose value counts down in rea
 ### 2. Check the live token, no keys needed (needs Python 3)
 
 ```bash
-scripts/verify-testnet.sh worgl-demo.testnet
+scripts/verify-testnet.sh worgl-token.testnet
 ```
 
 You see `ALL CHECKS PASSED` after the script recomputes the melt index, the conservation of supply, the daily cap and any holder's balance from raw chain state, all pinned to one block.

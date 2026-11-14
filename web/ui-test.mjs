@@ -76,7 +76,7 @@ const check = (name, ok, detail = "") => { console.log(`${ok ? "PASS" : "FAIL"} 
 
 // storage deposit the contract expects, read straight from the chain
 const cfg = readFileSync(join(root, "..", "src", "scripts", "config.js"), "utf8");
-const token = /"([a-z0-9._-]+\.testnet)";?\s*$/m.exec(cfg.split("\n").find((l) => l.includes("TOKEN_ID")))?.[1] ?? "worgl-demo.testnet";
+const token = /"([a-z0-9._-]+\.testnet)";?\s*$/m.exec(cfg.split("\n").find((l) => l.includes("TOKEN_ID")))?.[1] ?? "worgl-token.testnet";
 const params = await (async () => { const r = await (await fetch("https://rpc.testnet.fastnear.com", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "call_function", finality: "final", account_id: token, method_name: "get_params", args_base64: btoa("{}") } }) })).json(); return JSON.parse(Buffer.from(r.result.result).toString()); })();
 
 const none = await session(null, snapshot);
