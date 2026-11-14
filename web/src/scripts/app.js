@@ -5,7 +5,7 @@ import {
   secondsPerPercent, describeDuration, describeEvery, usableUntil, parseCoins, formatCoinsRound, formatNear, fetchWithTimeout,
 } from "./worgl.js";
 import { initNote } from "./note.js";
-import { friendly, outcomeError, maxSendable, checkSend } from "./wallet-logic.js";
+import { friendly, outcomeError, reportedAmount, checkSend } from "./wallet-logic.js";
 import { drawChart } from "./chart.js";
 import { createSim } from "./sim-demo.js";
 
@@ -15,7 +15,6 @@ const $ = (id) => document.getElementById(id) ?? document.createElement("div");
 const has = (id) => !!document.getElementById(id);
 const chain = new Chain(RPC_URL, TOKEN_ID);
 const GAS = "30000000000000";
-const MAX_LEAD_SECS = 120n; // "Max" sends the balance as it will be this many seconds from now (see CONTRACT-QUESTIONS)
 
 let params = null;           // get_params, fixed after init
 let dao = null;              // Chain pointed at the governor
@@ -622,14 +621,15 @@ $("claim").addEventListener("click", async () => {
   finally { busy = false; updateButtons(); }
 });
 
+// "Max" sends everything you hold with transfer_all. A balance that melts every second cannot be typed as an exact
+// amount, so the contract moves all of the account's shares instead and reports the amount it sent.
+let sendAll = false;
 $("max").addEventListener("click", () => {
-  if (!figures() || !sync?.account) { setStatus("send-status", "Claim 100 coins first. There is nothing to send yet.", true); return; }
-  const amount = maxSendable({
-    shares: BigInt(sync.account.shares), factor: BigInt(params.factor), startNs: BigInt(params.start_ns),
-    nowNs: chainNowNs(), leadSecs: MAX_LEAD_SECS,
-  });
-  $("amount").value = formatCoins(amount, 18).replace(/,/g, "").replace(/\.?0+$/, "") || "0";
-  setStatus("send-status", `Max is your balance as it will be in ${MAX_LEAD_SECS} seconds, so the wallet has time to confirm. A little may stay behind.`);
+  const f = figures();
+  if (!f || !sync?.account || BigInt(sync.account.shares) === 0n) { setStatus("send-status", "You have no coins to send yet. Claim your 100 test coins first.", true); return; }
+  sendAll = true;
+  $("amount").value = formatCoins(balanceOfShares(BigInt(sync.account.shares), f.idx), 4).replace(/,/g, "");
+  setStatus("send-status", "Max sends everything you hold, even though it melts while the wallet confirms. The exact amount is shown once it is sent.");
 });
 
 $("send-form").addEventListener("submit", async (e) => {
@@ -637,9 +637,12 @@ $("send-form").addEventListener("submit", async (e) => {
   if (!connector || !accountId) { setStatus("send-status", "Wallet not connected. Connect a wallet first.", true); return; }
   const f = figures();
   const balance = f && sync.account ? balanceOfShares(BigInt(sync.account.shares), f.idx) : null;
-  const check = checkSend({ me: accountId, toText: $("to").value, amountText: $("amount").value, balance });
+  if (sendAll && (balance === null || balance === 0n)) { setStatus("send-status", "You have no coins to send.", true); return; }
+  // for "send everything" the amount is not typed: only the recipient is checked here
+  const check = checkSend({ me: accountId, toText: $("to").value, amountText: sendAll ? "1" : $("amount").value, balance: sendAll ? null : balance });
   if (check.error) { setStatus("send-status", check.error, true); return; }
-  const { to, amount } = check;
+  const { to } = check;
+  const amount = sendAll ? balance : check.amount;   // for sendAll this is only the figure shown before confirming
   busy = true; updateButtons();
   setStatus("send-status", "Checking the recipient…");
   try {
@@ -647,25 +650,35 @@ $("send-form").addEventListener("submit", async (e) => {
     if (!recipient) {
       // Not set up for WORGL yet. A typo must never be paid for, so check the NEAR account exists first.
       if (!(await chain.accountExists(to))) { setStatus("send-status", `No testnet account called ${to} exists. Check the spelling.`, true); return; }
-      pendingSend = { to, amount };
-      setStatus("send-status", `${to} has not set up WORGL yet. You can register them for ${formatNear(BigInt(params.storage_cost), 5)} NEAR, paid by you, and send ${formatCoins(amount, 4)} coins in the same step.`);
+      pendingSend = { to, amount, all: sendAll };
+      setStatus("send-status", `${to} has not set up WORGL yet. You can register them for ${formatNear(BigInt(params.storage_cost), 5)} NEAR, paid by you, and send ${sendAll ? "everything you hold" : `${formatCoins(amount, 4)} coins`} in the same step.`);
       $("register-row").hidden = false;
       return;
     }
     setStatus("send-status", "Waiting for your wallet to confirm…");
-    const out = await sendCall("ft_transfer", { receiver_id: to, amount: amount.toString() }, "1");
-    showSent(out, `Sent ${formatCoins(amount, 4)} coins to ${to}. `);
+    const out = sendAll
+      ? await sendCall("transfer_all", { receiver_id: to }, "1")
+      : await sendCall("ft_transfer", { receiver_id: to, amount: amount.toString() }, "1");
+    showSent(out, sentText(out, to, sendAll ? null : amount, false));
   } catch (err) { setStatus("send-status", friendly(err), true); }
   finally { busy = false; updateButtons(); }
 });
 
 let pendingSend = null;   // a send to an account that still needs registering, waiting for the visitor to confirm
 function clearPendingSend() { pendingSend = null; $("register-row").hidden = true; }
+/** "Sent 98.1234 coins to x." For send-everything, the amount is the one the transaction reports. */
+function sentText(out, to, typedAmount, registered) {
+  const amount = typedAmount ?? reportedAmount(out);
+  const what = amount === null ? "everything you held" : `${formatCoins(amount, 4)} coins`;
+  return registered ? `Registered ${to} and sent ${what}. ` : `Sent ${what} to ${to}. `;
+}
 function showSent(out, text) {
   const hash = txOf(out);
   const el = $("send-status");
   el.classList.remove("err");
   realSent = true;
+  sendAll = false;
+  $("amount").value = "";
   clearPendingSend();
   el.textContent = text;
   if (hash) el.append(link("Transaction", `${EXPLORER}/txns/${hash}`));
@@ -673,21 +686,24 @@ function showSent(out, text) {
 }
 $("send-register").addEventListener("click", async () => {
   if (!pendingSend || !connector || !accountId) return;
-  const { to, amount } = pendingSend;
+  const { to, amount, all } = pendingSend;
   busy = true; updateButtons();
   setStatus("send-status", "Waiting for your wallet to confirm…");
   try {
     // one transaction: register the recipient (the sender pays the storage deposit), then send
     const out = await sendActions([
       ["storage_deposit", { account_id: to, registration_only: true }, params.storage_cost],
-      ["ft_transfer", { receiver_id: to, amount: amount.toString() }, "1"],
+      all ? ["transfer_all", { receiver_id: to }, "1"] : ["ft_transfer", { receiver_id: to, amount: amount.toString() }, "1"],
     ]);
-    showSent(out, `Registered ${to} and sent ${formatCoins(amount, 4)} coins. `);
+    showSent(out, sentText(out, to, all ? null : amount, true));
   } catch (err) { setStatus("send-status", friendly(err), true); }
   finally { busy = false; updateButtons(); }
 });
 $("send-register-cancel").addEventListener("click", () => { clearPendingSend(); setStatus("send-status", ""); });
-for (const id of ["to", "amount"]) $(id).addEventListener("input", () => { if (pendingSend) { clearPendingSend(); setStatus("send-status", ""); } });
+for (const id of ["to", "amount"]) $(id).addEventListener("input", () => {
+  if (id === "amount") sendAll = false;   // typing an amount replaces "Max"
+  if (pendingSend) { clearPendingSend(); setStatus("send-status", ""); }
+});
 
 $("who-go").addEventListener("click", () => { const v = $("who-input").value.trim().toLowerCase(); if (v) setWho(v); });
 $("who-input").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("who-go").click(); } });

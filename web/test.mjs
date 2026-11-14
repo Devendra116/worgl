@@ -6,7 +6,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { createServer } from "node:http";
 import { createSim } from "./src/scripts/sim-demo.js";
 import { parseCoins } from "./src/scripts/worgl.js";
-import { friendly, outcomeError, maxSendable, checkSend } from "./src/scripts/wallet-logic.js";
+import { friendly, outcomeError, reportedAmount, checkSend } from "./src/scripts/wallet-logic.js";
 import { rpow, balanceOfShares, circulatingOf, indexAt, formatCoins, Chain, ONE, usableUntil, describeEvery, secondsPerPercent, DEMO_FACTOR, parseChainJson, formatNear, formatCoinsRound, formatUnits, fetchWithTimeout } from "./src/scripts/worgl.js";
 const v = JSON.parse(readFileSync(new URL("../contract/tests/vectors.json", import.meta.url)));
 let bad = 0;
@@ -33,13 +33,13 @@ check("friendly: unknown error is still a sentence with a next step", /^The tran
 check("outcomeError finds a failed receipt", outcomeError({ receipts_outcome: [{ outcome: { status: { SuccessValue: "" } } }, { outcome: { status: { Failure: { ActionError: "x" } } } }] }) !== null);
 check("outcomeError is null on success", outcomeError({ receipts_outcome: [{ outcome: { status: { SuccessValue: "" } } }], status: { SuccessValue: "" } }) === null);
 {
-  const F = 999997208243937652252849536n, start = 10n ** 18n;
-  const now = start + 1000n * 1_000_000_000n, shares = 100n * ONE;
-  const nowBal = balanceOfShares(shares, indexAt(F, start, now));
-  const max = maxSendable({ shares, factor: F, startNs: start, nowNs: now, leadSecs: 120n });
-  check("Max is below the balance now and above the balance 121 s later", max < nowBal && max >= balanceOfShares(shares, indexAt(F, start, now + 121n * 1_000_000_000n)) - 1n);
-  const later = balanceOfShares(shares, indexAt(F, start, now + 90n * 1_000_000_000n));
-  check("Max is still affordable if the transaction lands 90 s later", max <= later);
+  // the amount a transfer_all transaction reports: first the return value, then the event in the logs
+  const b64 = (s) => Buffer.from(s).toString("base64");
+  check("reportedAmount reads the return value of the call", reportedAmount({ status: { SuccessValue: b64('"98123456789012345678"') } }) === 98123456789012345678n);
+  const event = 'EVENT_JSON:{"standard":"nep141","version":"1.0.0","event":"ft_transfer","data":[{"old_owner_id":"a.testnet","new_owner_id":"b.testnet","amount":"5000000000000000000"}]}';
+  check("reportedAmount falls back to the ft_transfer event in the logs", reportedAmount({ status: { SuccessValue: "" }, receipts_outcome: [{ outcome: { logs: ["hello", event] } }] }) === 5000000000000000000n);
+  check("reportedAmount is null when the transaction reports nothing", reportedAmount({ status: { SuccessValue: "" }, receipts_outcome: [] }) === null && reportedAmount(undefined) === null);
+  check("friendly: nothing to send", friendly("Smart contract panicked: Nothing to send: you hold no coins") === "You have no coins to send.");
   check("send form: bad account", checkSend({ me: "a.testnet", toText: "A B", amountText: "1", balance: 10n * ONE }).error.includes("account"));
   check("send form: to self", checkSend({ me: "a.testnet", toText: "a.testnet", amountText: "1", balance: 10n * ONE }).error.includes("yourself"));
   check("send form: zero", checkSend({ me: "a.testnet", toText: "b.testnet", amountText: "0", balance: 10n * ONE }).error.includes("above zero"));

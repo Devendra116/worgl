@@ -1,5 +1,5 @@
 // Pure helpers for the wallet actions, kept separate so they can be tested without a browser.
-import { indexAt, balanceOfShares, parseCoins } from "./worgl.js";
+import { parseCoins } from "./worgl.js";
 
 /** Turn a contract panic or wallet error into a sentence that says what happened and what to do. */
 export function friendly(err) {
@@ -9,6 +9,7 @@ export function friendly(err) {
     [/Daily payout cap exceeded/i, "Today's payout allowance is used up. Try again after 00:00 UTC."],
     [/Treasury has insufficient funds/i, "The town pot does not hold enough to pay this."],
     [/Attach the storage deposit|less than the storage cost/i, "A new account must attach a small storage deposit. The page adds it; check your wallet shows it."],
+    [/Nothing to send|you hold no coins|balance is zero/i, "You have no coins to send."],
     [/Not enough balance/i, "Your balance is lower than that amount. It melts every second, so try a smaller amount."],
     [/Receiver is not registered/i, "That account is not registered yet. Ask them to claim 100 coins first."],
     [/Sender is not registered/i, "Your account is not registered yet. Claim 100 coins first."],
@@ -35,12 +36,28 @@ export function outcomeError(out) {
 }
 
 /**
- * "Max": the balance melts while the wallet waits for approval, so ask for what the balance will be
- * `leadSecs` from now. It is still valid if the transaction lands before then. A little may stay behind.
+ * The amount a transfer_all transaction reports. The contract returns it as a JSON string, and also writes it
+ * in the ft_transfer event, so look at the return value first and the event logs second. null if neither is there.
  */
-export function maxSendable({ shares, factor, startNs, nowNs, leadSecs }) {
-  const idx = indexAt(factor, startNs, nowNs + leadSecs * 1_000_000_000n);
-  return balanceOfShares(shares, idx);
+export function reportedAmount(out) {
+  try {
+    const sv = out?.status?.SuccessValue;
+    if (typeof sv === "string" && sv) {
+      const v = JSON.parse(atob(sv));
+      if (typeof v === "string" && /^\d+$/.test(v)) return BigInt(v);
+    }
+  } catch { /* fall through to the logs */ }
+  for (const r of out?.receipts_outcome ?? []) {
+    for (const line of r?.outcome?.logs ?? []) {
+      if (!String(line).startsWith("EVENT_JSON:")) continue;
+      try {
+        const ev = JSON.parse(String(line).slice("EVENT_JSON:".length));
+        const amount = ev?.data?.[0]?.amount;
+        if (ev?.event === "ft_transfer" && /^\d+$/.test(amount ?? "")) return BigInt(amount);
+      } catch { /* not ours */ }
+    }
+  }
+  return null;
 }
 
 /**

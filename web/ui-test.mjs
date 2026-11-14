@@ -31,7 +31,7 @@ const STUB = `export class NearConnector {
   constructor(){ this.h = {}; } on(e, f){ this.h[e] = f; }
   async wallet(){ const a = globalThis.__mockAccount; if (!a) throw new Error("no wallet connected");
     return { getAccounts: async () => [{ accountId: a, publicKey: "ed25519:mock" }],
-             signAndSendTransaction: async (x) => { (globalThis.__txs ||= []).push(JSON.parse(JSON.stringify(x))); return { transaction: { hash: "MOCKHASH" }, receipts_outcome: [] }; } }; }
+             signAndSendTransaction: async (x) => { (globalThis.__txs ||= []).push(JSON.parse(JSON.stringify(x))); const last = x.actions[x.actions.length - 1].params.methodName; return { transaction: { hash: "MOCKHASH" }, status: { SuccessValue: last === "transfer_all" ? btoa('"98765432100000000000"') : "" }, receipts_outcome: [] }; } }; }
   async connect(){ return this.wallet(); } async disconnect(){} }`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const dbg = (...a) => { if (process.env.UI_DEBUG) console.error("[ui]", ...a); };
@@ -125,6 +125,36 @@ if (process.env.CLAIMED_ACCOUNT) {
       acts.length === 2 && acts[0].methodName === "storage_deposit" && acts[0].args.account_id === to && acts[0].deposit === params.storage_cost
         && acts[1].methodName === "ft_transfer" && acts[1].args.receiver_id === to && acts[1].deposit === "1", JSON.stringify(acts));
     check("then the page says the recipient was registered and paid", /Registered .* and sent/.test(reg.done.status), reg.done.status);
+  }
+
+  // ---- Max: send everything with transfer_all (no typed amount, no margin)
+  const maxFlow = (toName, thenType) => `(async () => { const $ = (id) => document.getElementById(id); const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const set = (id, v) => { $(id).value = v; $(id).dispatchEvent(new Event("input", {bubbles:true})); };
+    set("to", ${JSON.stringify(toName)}); $("max").click(); await sleep(200); const afterMax = { amountField: $("amount").value, status: $("send-status").textContent };
+    ${thenType ? 'set("amount", "1");' : ""}
+    $("send-form").requestSubmit(); await sleep(2500);
+    const asked = { confirm: !$("register-row").hidden, status: $("send-status").textContent };
+    if (asked.confirm) { $("send-register").click(); await sleep(800); }
+    return { afterMax, asked, done: $("send-status").textContent, tx: (globalThis.__txs || [])[0] ?? null }; })()`;
+  const registeredRecipient = async (a) => !(await unregistered(a)) && !(await rpc({ request_type: "view_account", finality: "final", account_id: a })).error
+    && JSON.parse(Buffer.from((await rpc({ request_type: "call_function", finality: "final", account_id: token, method_name: "get_account", args_base64: Buffer.from(JSON.stringify({ account_id: a })).toString("base64") })).result.result).toString()) !== null;
+  const regd = process.env.REGISTERED_RECIPIENT ?? "dev.testnet";
+  if (await registeredRecipient(regd)) {
+    const m = await session(process.env.CLAIMED_ACCOUNT, maxFlow(regd, false), 6500);
+    const a = m.tx?.actions?.map((x) => x.params) ?? [];
+    check("Max puts your balance in the box and says it sends everything", /^\d+\.\d+$/.test(m.afterMax.amountField) && /everything you hold/.test(m.afterMax.status), JSON.stringify(m.afterMax));
+    check("Max then Send calls transfer_all (no amount, 1 yocto), not ft_transfer", a.length === 1 && a[0].methodName === "transfer_all" && a[0].args.receiver_id === regd && !("amount" in a[0].args) && a[0].deposit === "1", JSON.stringify(a));
+    check("the page shows the amount the transaction reports", /Sent 98\.7654 coins to/.test(m.done), m.done);
+    const typed = await session(process.env.CLAIMED_ACCOUNT, maxFlow(regd, true), 6500);
+    const ta = typed.tx?.actions?.map((x) => x.params) ?? [];
+    check("typing an amount after Max goes back to a normal ft_transfer of that amount", ta.length === 1 && ta[0].methodName === "ft_transfer" && ta[0].args.amount === "1000000000000000000", JSON.stringify(ta));
+  } else console.log(`SKIP  Max to a registered recipient (${regd} is not registered; set REGISTERED_RECIPIENT=<one>)`);
+  if (to) {
+    const m2 = await session(process.env.CLAIMED_ACCOUNT, maxFlow(to, false), 6500);
+    const a2 = m2.tx?.actions?.map((x) => x.params) ?? [];
+    check("Max to an unregistered account: asks first, then registers and sends everything in one transaction",
+      m2.asked.confirm && /everything you hold/.test(m2.asked.status) && a2.length === 2 && a2[0].methodName === "storage_deposit" && a2[1].methodName === "transfer_all" && a2[1].args.receiver_id === to && a2[1].deposit === "1", JSON.stringify({ asked: m2.asked, a2 }));
+    check("and reports the amount sent", /Registered .* and sent 98\.7654 coins/.test(m2.done), m2.done);
   }
 } else console.log("SKIP  already-claimed account (set CLAIMED_ACCOUNT=<account that has claimed> to check it)");
 
