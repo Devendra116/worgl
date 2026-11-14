@@ -44,7 +44,7 @@ and the melt funds a treasury that a DAO pays out again.
 | **Governor** | Any account chosen at deployment, normally a DAO of your choice with **any approval rule**. It can call exactly one method, `pay_out`. The demo deployment uses the Sputnik DAO [`devworgl-dao.sputnikv2.testnet`](https://testnet.nearblocks.io/address/devworgl-dao.sputnikv2.testnet) purely as an example; the token does not care how the governor decides. |
 | **Payout limit** | At most **10% of the treasury per UTC day**, enforced by the contract. |
 | **Standards** | NEP-141 core (`ft_transfer`, `ft_balance_of`, `ft_total_supply`), NEP-145 storage management, NEP-148 metadata. No `ft_transfer_call`, by design. |
-| **Verified by** | 39 Rust unit and property tests (two 100,000-step fuzz tests), sandbox tests on a local NEAR node (including an example Sputnik DAO governing `pay_out`, and an upgrade test over the deployed wasm), 47 web checks, and a keyless on-chain verifier. |
+| **Verified by** | 40 Rust unit and property tests (two 100,000-step fuzz tests), sandbox tests on a local NEAR node (including an example Sputnik DAO governing `pay_out`, and an upgrade test over the deployed wasm), 47 web checks, and a keyless on-chain verifier. |
 | **Website** | A six-page [Astro](https://astro.build) static site in [`web/`](web/) with a live note, a no-wallet simulation, wallet claim and send, and in-browser checks. |
 | **Track** | NEAR HACKATHON, **memecoins**. Testnet only; the coins have no value. |
 
@@ -108,7 +108,7 @@ You see `ALL CHECKS PASSED` after the script recomputes the melt index, the cons
 scripts/test.sh
 ```
 
-You see `ALL TESTS PASSED`. It runs the Python reference maths, the 39 Rust tests, builds the wasm with `cargo-near`, runs the sandbox tests and checks the website's maths against the contract's test vectors. It needs Rust with the `wasm32-unknown-unknown` target, `cargo-near`, Python 3 with `matplotlib` and `numpy`, and Node. Docker is needed only if your glibc is older than 2.39 (the scripts detect this and run the sandbox node in an `ubuntu:24.04` container).
+You see `ALL TESTS PASSED`. It runs the Python reference maths, the 40 Rust tests, builds the wasm with `cargo-near`, runs the sandbox tests and checks the website's maths against the contract's test vectors. It needs Rust with the `wasm32-unknown-unknown` target, `cargo-near`, Python 3 with `matplotlib` and `numpy`, and Node. Docker is needed only if your glibc is older than 2.39 (the scripts detect this and run the sandbox node in an `ubuntu:24.04` container).
 
 ### 4. Build the website for hosting
 
@@ -163,7 +163,7 @@ treasury    = 1,000,000 coins − circulating              the contract's own ac
 | Total supply | 1,000,000 WORGL | Fixed. No mint. |
 | Demo melt rate | 1% per hour | Factor `0.99^(1/3600)` = `999997208243937652252849536`. |
 | Real melt rate | 1% per month (30 days) | Factor `0.99^(1/2592000)` = `999999996122555619592348752`. |
-| Daily payout limit | 10% of the treasury at the start of the UTC day | Shared by faucet claims and DAO payouts. |
+| Daily payout limit | 10% of the treasury at the start of the UTC day | Applies to DAO payouts only. The test faucet is separate and does not use it. |
 | Test faucet | 100 WORGL, once per account | Testnet only. The caller pays a storage deposit of about 0.00126 NEAR; any excess is refunded. |
 | Transfers | exactly 1 yoctoNEAR attached | NEP-141 convention; keeps function-call keys out. |
 | Pay-out memo | at most 140 bytes | |
@@ -239,7 +239,7 @@ assets/            Logo and screenshots used by this README
 
 | Layer | What | How many |
 |---|---|---|
-| Rust unit and property tests | Maths, claims, transfers, returning coins to the treasury, `transfer_all` (success, every refusal, fuzzed), payouts, daily limit, index-zero behaviour, JSON interface, and the stored-state layout (compared byte for byte with the deployed contract) | 39 |
+| Rust unit and property tests | Maths, claims, transfers, returning coins to the treasury, `transfer_all` (success, every refusal, fuzzed), payouts, daily limit, index-zero behaviour, JSON interface, and the stored-state layout (compared byte for byte with the deployed contract) | 40 |
 | Fuzz tests | Random operations and time jumps, invariants checked throughout | 2 × 100,000 steps |
 | Sandbox tests (local NEAR node) | Token flow, governor-only payouts, registering a new recipient and paying them in one transaction, `transfer_all` on a real node, an example Sputnik DAO governing `pay_out` | 4 (+1 slow) |
 | Upgrade test (optional) | Deploys the previously deployed wasm, builds state, deploys the new wasm over it with no init, and checks the raw stored state is byte-for-byte identical: `WORGL_OLD_WASM=<old wasm> cargo test --test upgrade` in `sandbox-tests/` | 1 |
@@ -289,7 +289,7 @@ scripts/propose-payout.sh $DAO.sputnikv2.testnet $TOKEN <recipient>.testnet 10 <
 
 - **Testnet and a demo.** The coins have no value. The code has not been audited.
 - **The demo runs fast on purpose.** 1% per hour lets you watch it; a real DAO would use 1% per month. A deployed copy has a finite life, described under [Parameters](#parameters).
-- **The test faucet is open to everyone.** Accounts are free, so one person can claim many times, limited only by the daily limit, which the faucet shares with DAO payouts. A real DAO would have no open claim and would pay out only through approved proposals.
+- **The test faucet is open to everyone.** Accounts are free, so one person can claim many times, but the faucet is separate from payouts: it does not use the payout limit, and it closes by itself once the treasury is down to half of the supply, so it cannot drain the pot that payouts draw from. A real DAO would have no open claim and would pay out only through approved proposals.
 - **Payouts depend on the governor.** The contract enforces the daily limit and nothing about recipients. Whoever governs the token decides who is paid, up to the day's remaining limit.
 - **The token account still has a full-access key,** so its owner could replace the code. Deleting it is optional and irreversible; it makes the code permanent and means a bug could never be fixed. The website reads this live.
 - **No `ft_transfer_call`.** The token does not make cross-contract calls, so it cannot be sent into contracts that need a callback.
