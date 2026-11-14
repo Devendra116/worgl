@@ -1,5 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
+import { SITE } from "../site.config.js";
 ---
 <Base title="The numbers · Wörgl" description="1,000,000 coins, who controls them, and live figures read from the contract on NEAR testnet." active="/numbers">
 <section class="section lead-section" aria-labelledby="numbers-title">
@@ -45,7 +46,7 @@ import Base from "../layouts/Base.astro";
     <div>
       <h3 style="margin-top:0">DAO proposals</h3>
       <ul class="log" id="proposals"><li>Loading proposals…</li></ul>
-      <p><a id="dao-link" href="#">Open the DAO on NearBlocks</a></p>
+      <p><a id="dao-link" href={`${SITE.EXPLORER}/address/${SITE.DAO_ID}`}>Open the DAO on NearBlocks</a></p>
     </div>
   </div>
 </section>

@@ -1,5 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
+import { SITE } from "../site.config.js";
 ---
 <Base title="The maths · Wörgl" description="A calculator, a chart and the proof: how a Wörgl balance is worked out." active="/maths">
 <!-- THE MATHS -->
@@ -8,7 +9,7 @@ import Base from "../layouts/Base.astro";
   <p class="prose">The rule is short: every balance loses 1% on a fixed schedule, and the loss goes to the pot. Three levels follow, from a calculator to the proof.</p>
 
   <h2 style="margin-top:var(--s7)">Try a number</h2>
-  <p class="prose">At the real setting, 1% every month.</p>
+  <p class="prose">At the real setting, 1% every month. A month here means 30 days.</p>
   <form class="calc" id="calc" novalidate>
     <div class="row">
       <div><label for="calc-coins">Coins</label><input id="calc-coins" value="100" inputmode="decimal" size="10"></div>
@@ -22,6 +23,7 @@ import Base from "../layouts/Base.astro";
 
 <section class="section" aria-labelledby="sim-title">
   <h2 id="sim-title">A 60-day simulation</h2>
+  <p class="prose">The same rule runs at three speeds. The real setting loses 1% every 30 days, the live demo 1% every hour, and this simulation 1% every day. The chart uses 1% a day because 60 days of the real setting would barely move (about 2%), while 60 days at the demo speed would melt almost everything.</p>
   <figure class="chart" id="chart">
     <img id="chart-fallback" hidden src="/assets/simulation.png" alt="Chart of a 60-day simulation with 100 wallets: the pot falls as the DAO pays coins out, while some coins melt back; an idle holder's 100 coins fall to about 55 while a wallet paid by the pot keeps its balance up." width="1650" height="880">
     <figcaption>Illustrative: this simulation melts 1% per day so 60 days show the shape. It has 100 wallets that each claim 100 coins on day 0. The top chart is the same in all three runs, because trading cannot avoid the melt.</figcaption>
@@ -35,14 +37,14 @@ import Base from "../layouts/Base.astro";
     <div class="prose">
       <p>Nothing on the chain changes every second. The contract stores your <b>shares</b>. One <b>index</b> falls with time, and your balance is worked out when somebody reads it.</p>
     </div>
-    <p class="formula num">balance = floor(shares × index ÷ 10<sup>27</sup>)</p>
+    <p class="formula num">balance = floor(shares × index ÷ 10<span class="sr-only">^</span><sup>27</sup>)</p>
     <div class="check-controls">
       <label for="who-input">Whose numbers</label>
       <div class="row"><input id="who-input" placeholder="an account, such as friend.testnet" size="32" spellcheck="false" autocomplete="off"><button id="who-go" type="button">Look up</button><button id="who-all" type="button">Everyone together</button></div>
     </div>
     <dl class="ledger check" id="check" aria-live="off"></dl>
     <p class="faded" id="check-note"></p>
-    <p>Balances round down and the total in circulation rounds up, so rounding always favours the pot. Checks in the repository: <a id="link-tests" href="#">the unit tests</a>, <a id="link-math" href="#">the maths module</a>, and two 100,000-step fuzz tests that check the supply is conserved. <code>scripts/verify-testnet.sh</code> re-derives these numbers from raw chain state.</p>
+    <p>Balances round down and the total in circulation rounds up, so rounding always favours the pot. Checks in the repository: <a id="link-tests" href={`${SITE.REPO}/blob/main/contract/src/tests.rs`}>the unit tests</a>, <a id="link-math" href={`${SITE.REPO}/blob/main/contract/src/math.rs`}>the maths module</a>, and two 100,000-step fuzz tests that check the supply is conserved. <code>scripts/verify-testnet.sh</code> re-derives these numbers from raw chain state.</p>
   </details>
 </section>
 <p class="next">Questions people ask? <a class="button solid" href="/faq">Next: questions and limits</a></p>

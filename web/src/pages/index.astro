@@ -1,5 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
+import { SITE } from "../site.config.js";
 ---
 <Base title="Wörgl: money with a shelf life, a hackathon project on NEAR testnet" description="Wörgl coins lose 1% on a fixed schedule, and what melts goes into a pot the community spends again. A hackathon project, live on NEAR testnet." active="/">
 
@@ -11,7 +12,7 @@ import Base from "../layouts/Base.astro";
     <a class="button solid" href="/try">Try it free</a>
     <a class="button" href="/idea">How it works</a>
   </div>
-  <p class="hero-note">Free. Runs on NEAR testnet. No wallet needed.</p>
+  <p class="hero-note">Free. Runs on NEAR testnet. No wallet needed to try the simulation.</p>
 
   <div class="window" aria-label="Live Wörgl note">
     <div class="window-bar">
@@ -56,7 +57,7 @@ import Base from "../layouts/Base.astro";
 
 <section class="section" aria-labelledby="rates-title">
   <h2 id="rates-title">Two speeds</h2>
-  <p class="prose">The demo is fast so you can watch it happen. A real DAO would use the slow setting.</p>
+  <p class="prose">The demo is fast so you can watch it happen. A real DAO would use the slow setting. A month here means 30 days.</p>
   <div class="notes-pair">
     <div class="mini-note">
       <h3>This demo</h3>
@@ -66,7 +67,7 @@ import Base from "../layouts/Base.astro";
     <div class="mini-note">
       <h3>Real setting</h3>
       <p class="mini-big">1% every month</p>
-      <p>100 coins become <b class="num" data-real-month>99.00</b> after a month, and <b class="num" data-real-year>88.49</b> after a year.</p>
+      <p>100 coins become <b class="num" data-real-month>99.00</b> after a month, and <b class="num" data-real-year>88.49</b> after 365 days.</p>
     </div>
   </div>
 </section>
@@ -109,7 +110,7 @@ import Base from "../layouts/Base.astro";
     <button id="verify-run" type="button">Run the checks again</button>
     <a href="/maths">How the maths works</a>
   </div>
-  <p class="hint">Contract <a id="home-token" href="#"></a>, governed by <a id="home-dao" href="#"></a>. The code is on <a id="home-repo" href="#">GitHub</a>.</p>
+  <p class="hint">Contract <a id="home-token" href={`${SITE.EXPLORER}/address/${SITE.TOKEN_ID}`}>{SITE.TOKEN_ID}</a>, governed by <a id="home-dao" href={`${SITE.EXPLORER}/address/${SITE.DAO_ID}`}>{SITE.DAO_ID}</a>. The code is on <a id="home-repo" href={SITE.REPO}>GitHub</a>.</p>
 </section>
 
 <section class="section end-cta" aria-labelledby="cta-title">

@@ -19,10 +19,10 @@ import Base from "../layouts/Base.astro";
   <h2 id="limits-title">Good to know</h2>
   <ul class="plain">
     <li><b>This is a hackathon project on testnet.</b> The coins have no value, and the code has not been audited.</li>
-    <li><b>The demo runs at a fast speed.</b> 1% every <span data-period>hour</span>, so you can watch it. The real setting is 1% a month.</li>
+    <li><b>The demo runs at a fast speed.</b> 1% every <span data-period>hour</span>, so you can watch it. The real setting is 1% a month. A month here means 30 days.</li>
     <li><b>The test faucet is open to everyone.</b> Accounts are free, so one person can claim many times. A real DAO would pay out through approved proposals instead.</li>
     <li><b>The governor chooses who is paid.</b> The contract enforces the daily cap; whoever governs the token decides the recipients.</li>
-    <li><b>Coins are not yet usable inside other contracts.</b> The token does not support <code>ft_transfer_call</code>.</li>
+    <li><b>Coins are not yet usable inside other contracts.</b> The token does not support <code>ft_transfer_call</code>. Trading pools and other contracts that record a deposited amount are not supported, because balances keep melting.</li>
     <li id="key-limit"><b>The contract can still be replaced.</b> <span id="key-status">Checking this account's keys…</span></li>
     <li><b>Balances change with the clock.</b> Wallets and explorers show the new balance when they read it again.</li>
   </ul>

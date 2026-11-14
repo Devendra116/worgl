@@ -1,6 +1,7 @@
 ---
 // Shared frame for every page: testnet banner, sticky nav, footer, and the one script that powers the live parts.
 import "../styles/style.css";
+import { SITE } from "../site.config.js";
 interface Props { title: string; description: string; active?: string }
 const { title, description, active } = Astro.props;
 const nav = [
@@ -59,14 +60,14 @@ const favicon =
 
     <footer>
       <dl>
-        <dt>Repository</dt><dd><a id="f-repo" href="https://github.com/Devendra116/worgl">github.com/Devendra116/worgl</a></dd>
-        <dt>Token contract</dt><dd><a id="f-token" href="#"></a></dd>
-        <dt>DAO</dt><dd><a id="f-dao" href="#"></a></dd>
-        <dt>History</dt><dd><a href="https://en.wikipedia.org/wiki/W%C3%B6rgl">Wörgl</a> and <a href="https://en.wikipedia.org/wiki/Demurrage_(currency)">Demurrage (currency)</a> on Wikipedia; <a href="https://de.wikipedia.org/wiki/W%C3%B6rgler_Schwundgeld">Wörgler Schwundgeld</a> (German Wikipedia).</dd>
+        <dt>Repository</dt><dd><a id="f-repo" href={SITE.REPO}>{SITE.REPO.replace("https://", "")}</a></dd>
+        <dt>Token contract</dt><dd><a id="f-token" href={`${SITE.EXPLORER}/address/${SITE.TOKEN_ID}`}>{SITE.TOKEN_ID}</a></dd>
+        <dt>DAO</dt><dd><a id="f-dao" href={`${SITE.EXPLORER}/address/${SITE.DAO_ID}`}>{SITE.DAO_ID}</a></dd>
+        <dt>History</dt><dd><a href="https://en.wikipedia.org/wiki/W%C3%B6rgl">Wörgl</a> and <a href="https://en.wikipedia.org/wiki/Demurrage_(currency)">Demurrage (currency)</a> on Wikipedia; <a href="https://de.wikipedia.org/wiki/W%C3%B6rgler_Schwundgeld">Wörgler Schwundgeld</a> (German Wikipedia); <a href="https://mises.org/mises-daily/free-money-miracle">Free Money Miracle</a> (Mises Institute); <a href="https://beyondmoney.net/the-end-results-of-the-worgl-experiment/">The end results of the Wörgl experiment</a> (Beyond Money).</dd>
       </dl>
       <p><b>A hackathon project on NEAR testnet.</b> Built at NEAR HACKATHON. The coins have no value and nothing here has been audited. Most of the code was written by an AI assistant (Claude Code) under the project owner's direction.</p>
       <p>Fonts: Jost and Source Serif 4, under the SIL Open Font License.</p>
-      <p class="made-by">Made with <svg class="heart" role="img" aria-label="love" viewBox="0 0 24 24" width="1em" height="1em"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg> by <a href="https://x.com/devendra_116" rel="noopener">devendra_116</a></p>
+      <p class="made-by">Made with <svg class="heart" role="img" aria-label="love" viewBox="0 0 24 24" width="1em" height="1em"><title>love</title><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg> by <a href="https://x.com/devendra_116" rel="noopener">devendra_116</a></p>
     </footer>
   </div>
 

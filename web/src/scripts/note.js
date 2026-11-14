@@ -113,7 +113,7 @@ export function initNote({ demoFactor }) {
 
 function describeOffset(secs) {
   const s = Number(secs);
-  if (s >= 365 * 86400 * 0.98) { const y = s / (365 * 86400); return `After ${y >= 9.5 ? Math.round(y) : y.toFixed(1).replace(/\.0$/, "")} ${y === 1 ? "year" : "years"}`; }
+  if (s >= 365 * 86400 * 0.98) { const y = s / (365 * 86400); const n = y >= 9.5 ? Math.round(y) : Number(y.toFixed(1)); return `After ${n} ${n === 1 ? "year" : "years"} (${Math.round(n * 365).toLocaleString("en-US")} days)`; }
   if (s >= 30 * 86400 * 0.9) { const m = s / (30 * 86400); return `After ${m.toFixed(1).replace(/\.0$/, "")} ${m === 1 ? "month" : "months"}`; }
   return `After ${describeDuration(s)}`;
 }
