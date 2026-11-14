@@ -103,16 +103,29 @@ if (process.env.CLAIMED_ACCOUNT) {
   const claimed = await session(process.env.CLAIMED_ACCOUNT, snapshot);
   check("an account that already claimed: Claim is disabled and says why", claimed.mode === "real" && claimed.claimDisabled === true && /already claimed/.test(claimed.status), JSON.stringify(claimed));
 
-  const to = process.env.UNREGISTERED_ACCOUNT ?? "dev.testnet";
-  const reg = await session(process.env.CLAIMED_ACCOUNT, registerFlow, 6500);
-  check("sending to a name that is not a NEAR account is caught before anyone pays", /No testnet account called/.test(reg.typo.status) && !reg.typo.confirm, JSON.stringify(reg.typo));
-  check("sending to an existing account that has not set up the token asks first, and sends nothing yet", reg.ask.confirm && /has not set up WORGL/.test(reg.ask.status) && reg.txsBefore === 0, JSON.stringify(reg.ask));
-  check("Cancel hides the confirmation", reg.cancelled.confirm === false, JSON.stringify(reg.cancelled));
-  const acts = reg.tx?.actions?.map((a) => a.params) ?? [];
-  check("confirming signs ONE transaction: register the recipient (deposit paid by the sender), then send with 1 yocto",
-    acts.length === 2 && acts[0].methodName === "storage_deposit" && acts[0].args.account_id === to && acts[0].deposit === params.storage_cost
-      && acts[1].methodName === "ft_transfer" && acts[1].args.receiver_id === to && acts[1].deposit === "1", JSON.stringify(acts));
-  check("then the page says the recipient was registered and paid", /Registered .* and sent/.test(reg.done.status), reg.done.status);
+  // The recipient must be a real NEAR account that has not set up the token. The token's live state changes
+  // (visitors register accounts), so pick one now: UNREGISTERED_ACCOUNT if given, else the first candidate that fits.
+  const rpc = async (body) => (await fetch("https://rpc.testnet.fastnear.com", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: body }) })).json();
+  const unregistered = async (a) => {
+    const exists = !(await rpc({ request_type: "view_account", finality: "final", account_id: a })).error;
+    const r = await rpc({ request_type: "call_function", finality: "final", account_id: token, method_name: "get_account", args_base64: Buffer.from(JSON.stringify({ account_id: a })).toString("base64") });
+    return exists && JSON.parse(Buffer.from(r.result.result).toString()) === null;
+  };
+  let to = null;
+  for (const a of process.env.UNREGISTERED_ACCOUNT ? [process.env.UNREGISTERED_ACCOUNT] : ["devworgl-c1.testnet", "devworgl-c2.testnet", "devworgl-c3.testnet", "devworgl-signer.testnet", "dev.testnet"]) { if (await unregistered(a)) { to = a; break; } }
+  if (!to) console.log("SKIP  register-and-send checks: no existing account without the token was found (set UNREGISTERED_ACCOUNT=<one>)");
+  else {
+    const registerFlowFor = registerFlow.replace(JSON.stringify(process.env.UNREGISTERED_ACCOUNT ?? "dev.testnet"), JSON.stringify(to));
+    const reg = await session(process.env.CLAIMED_ACCOUNT, registerFlowFor, 6500);
+    check("sending to a name that is not a NEAR account is caught before anyone pays", /No testnet account called/.test(reg.typo.status) && !reg.typo.confirm, JSON.stringify(reg.typo));
+    check("sending to an existing account that has not set up the token asks first, and sends nothing yet", reg.ask.confirm && /has not set up WORGL/.test(reg.ask.status) && reg.txsBefore === 0, JSON.stringify(reg.ask));
+    check("Cancel hides the confirmation", reg.cancelled.confirm === false, JSON.stringify(reg.cancelled));
+    const acts = reg.tx?.actions?.map((a) => a.params) ?? [];
+    check("confirming signs ONE transaction: register the recipient (deposit paid by the sender), then send with 1 yocto",
+      acts.length === 2 && acts[0].methodName === "storage_deposit" && acts[0].args.account_id === to && acts[0].deposit === params.storage_cost
+        && acts[1].methodName === "ft_transfer" && acts[1].args.receiver_id === to && acts[1].deposit === "1", JSON.stringify(acts));
+    check("then the page says the recipient was registered and paid", /Registered .* and sent/.test(reg.done.status), reg.done.status);
+  }
 } else console.log("SKIP  already-claimed account (set CLAIMED_ACCOUNT=<account that has claimed> to check it)");
 
 server.close();

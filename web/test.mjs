@@ -2,11 +2,12 @@
 // (read-only, skipped if TOKEN is unset): JS index == contract index at the same block.
 //   node web/test.mjs                       # offline
 //   TOKEN=<token>.testnet node web/test.mjs # + live check
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
+import { createServer } from "node:http";
 import { createSim } from "./src/scripts/sim-demo.js";
 import { parseCoins } from "./src/scripts/worgl.js";
 import { friendly, outcomeError, maxSendable, checkSend } from "./src/scripts/wallet-logic.js";
-import { rpow, balanceOfShares, circulatingOf, indexAt, formatCoins, Chain, ONE, usableUntil, describeEvery, secondsPerPercent, DEMO_FACTOR, parseChainJson, formatNear, formatCoinsRound, formatUnits } from "./src/scripts/worgl.js";
+import { rpow, balanceOfShares, circulatingOf, indexAt, formatCoins, Chain, ONE, usableUntil, describeEvery, secondsPerPercent, DEMO_FACTOR, parseChainJson, formatNear, formatCoinsRound, formatUnits, fetchWithTimeout } from "./src/scripts/worgl.js";
 const v = JSON.parse(readFileSync(new URL("../contract/tests/vectors.json", import.meta.url)));
 let bad = 0;
 const check = (name, ok) => { console.log((ok ? "PASS  " : "FAIL  ") + name); bad += !ok; };
@@ -95,6 +96,31 @@ check("outcomeError is null on success", outcomeError({ receipts_outcome: [{ out
   check("formatCoinsRound rounds half up and formatCoins truncates", formatCoinsRound(99_99996n * 10n ** 13n, 4) === "100.0000" && formatCoins(99_99996n * 10n ** 13n, 4) === "99.9999");
   // a balance the contract would hold: 123456789012345678901 base units, no float anywhere
   check("a 21-digit amount round-trips through parseCoins and formatCoins without loss", formatCoins(123456789012345678901n, 18) === "123.456789012345678901" && parseCoins("123.456789012345678901") === 123456789012345678901n);
+}
+
+// ---- a request that never answers must not leave the page waiting for ever
+{
+  const srv = createServer(() => {});               // accepts the connection and never replies
+  await new Promise((r) => srv.listen(0, r));
+  const started = Date.now();
+  let message = "";
+  try { await fetchWithTimeout(`http://127.0.0.1:${srv.address().port}/`, {}, 300); } catch (e) { message = e.message; }
+  srv.closeAllConnections?.(); srv.close();
+  check("a request that never answers gives up at its deadline, with a clear message", /Timed out after 0\.3 s/.test(message) && Date.now() - started < 3000, message);
+}
+
+// ---- the built pages carry their links in the HTML itself (checked only if `npm run build` has been run)
+{
+  const dist = new URL("./dist/", import.meta.url);
+  const pages = ["index.html", "idea/index.html", "try/index.html", "numbers/index.html", "maths/index.html", "faq/index.html"];
+  if (existsSync(new URL("index.html", dist))) {
+    const html = Object.fromEntries(pages.map((p) => [p, readFileSync(new URL(p, dist), "utf8")]));
+    const empty = pages.filter((p) => /<a [^>]*href="#"/.test(html[p]));
+    check("no page has an empty '#' link before scripts run", empty.length === 0, empty.join(", "));
+    check("every page footer names the token and the DAO, linked to the explorer", pages.every((p) => /id="f-token" href="https:\/\/[^"]+\/address\/[^"]+"/.test(html[p]) && /id="f-dao" href="https:\/\/[^"]+\/address\/[^"]+"/.test(html[p])));
+    check("the maths page links the real test and maths files", /link-tests" href="https:\/\/github\.com\/[^"]+\/contract\/src\/tests\.rs"/.test(html["maths/index.html"]) && /link-math" href="https:\/\/github\.com\/[^"]+\/contract\/src\/math\.rs"/.test(html["maths/index.html"]));
+    check("the formula reads 10^27 to a text reader", /10<span class="sr-only">\^<\/span><sup>27<\/sup>/.test(html["maths/index.html"]));
+  } else console.log("SKIP  built-page checks (run `npm run build` first)");
 }
 
 if (process.env.TOKEN) {

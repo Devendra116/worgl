@@ -2,7 +2,7 @@ import { TOKEN_ID, RPC_URL, EXPLORER, ACTIVITY_API, REPO, CONNECT_URL } from "./
 import {
   Chain, ONE, RAY, TOTAL_SUPPLY, REAL_FACTOR, CLAIM_AMOUNT, MONTH, DAY, YEAR,
   rpow, indexAt, DEMO_FACTOR, balanceOfShares, circulatingOf, treasuryOf, formatCoins,
-  secondsPerPercent, describeDuration, describeEvery, usableUntil, parseCoins, formatCoinsRound, formatNear,
+  secondsPerPercent, describeDuration, describeEvery, usableUntil, parseCoins, formatCoinsRound, formatNear, fetchWithTimeout,
 } from "./worgl.js";
 import { initNote } from "./note.js";
 import { friendly, outcomeError, maxSendable, checkSend } from "./wallet-logic.js";
@@ -86,7 +86,25 @@ function drawLoop() {
 }
 
 // ---------------------------------------------------------------- reading the chain
+let refreshing = false;
 async function refresh() {
+  if (refreshing) return;   // a slow answer must not pile up more requests behind it
+  refreshing = true;
+  try { await refreshOnce(); } finally { refreshing = false; }
+}
+
+/** What each live block says while the contract has not answered, instead of "Loading…" for ever. */
+const UNAVAILABLE = "The contract did not answer. This page keeps trying.";
+function showChainUnavailable() {
+  if (has("rules") && !params) $("rules").replaceChildren(ledgerLine("Rules", "Not available yet", UNAVAILABLE));
+  if (has("proposals") && !dao) { const li = document.createElement("li"); li.textContent = `Proposals could not be read. ${UNAVAILABLE}`; $("proposals").replaceChildren(li); }
+  if (has("verify-out") && !sync) $("verify-out").replaceChildren(verifyRow(null, `The checks run when the contract answers. ${UNAVAILABLE}`));
+  if (has("verify-summary") && !sync) $("verify-summary").textContent = "Waiting for the contract";
+  if (has("notice") && !params) $("notice").textContent = `The demo-end dates appear when the contract answers. ${UNAVAILABLE}`;
+  for (const id of ["life-d1", "life-d2", "life-d3"]) if (has(id) && $(id).textContent === "–") $(id).textContent = "Not available yet";
+}
+
+async function refreshOnce() {
   try {
     const h = await chain.finalHeight(); // pin every view to one block
     if (!params) await onParams(await chain.view("get_params", {}, h));
@@ -111,6 +129,7 @@ async function refresh() {
     setStatus("data-status", last
       ? `Live data could not be read, so these are the last values from ${fmtTime(last.savedAt)}. The page will keep trying.`
       : "Live data could not be read. Check your connection; the page will keep trying.", true);
+    showChainUnavailable();
   }
   renderAll(true);
 }
@@ -127,6 +146,7 @@ async function onParams(p) {
   const dl = `${EXPLORER}/address/${p.governor}`;
   $("dao-link").href = dl; $("f-dao").href = dl; $("f-dao").textContent = p.governor;
   if (has("home-dao")) { $("home-dao").href = dl; $("home-dao").textContent = p.governor; }
+  if (has("proposals")) loadProposals();
 }
 
 function renderRules() {
@@ -340,7 +360,7 @@ function initCalculator() {
 async function loadKeyStatus() {
   const el = $("key-status");
   try {
-    const res = await fetch(RPC_URL, { method: "POST", headers: { "Content-Type": "application/json" },
+    const res = await fetchWithTimeout(RPC_URL, { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "view_access_key_list", finality: "final", account_id: TOKEN_ID } }) });
     const keys = (await res.json()).result?.keys;
     if (!keys) throw new Error("no keys in answer");
@@ -357,7 +377,7 @@ async function loadKeyStatus() {
 async function loadActivity() {
   const list = $("activity");
   try {
-    const res = await fetch(`${ACTIVITY_API}/fts/${encodeURIComponent(TOKEN_ID)}/txns?per_page=25`);
+    const res = await fetchWithTimeout(`${ACTIVITY_API}/fts/${encodeURIComponent(TOKEN_ID)}/txns?per_page=25`);
     if (!res.ok) throw new Error(`NearBlocks answered ${res.status}`);
     const rows = (await res.json()).data ?? [];
     const seen = new Set();
@@ -524,7 +544,7 @@ $("sim-send").addEventListener("click", () => {
 
 /** What 100 coins become at the real rate. */
 function drawShelfLife() {
-  const rows = [["1 month", MONTH], ["3 months", 3n * MONTH], ["6 months", 6n * MONTH], ["1 year", YEAR], ["5 years", 5n * YEAR]];
+  const rows = [["1 month (30 days)", MONTH], ["3 months (90 days)", 3n * MONTH], ["6 months (180 days)", 6n * MONTH], ["1 year (365 days)", YEAR], ["5 years (1,825 days)", 5n * YEAR]];
   const head = document.createElement("thead");
   head.innerHTML = "<tr><th scope='col'>After</th><th scope='col'>You hold</th><th scope='col'>Melted, into the pot</th></tr>";
   const body = document.createElement("tbody");
@@ -688,7 +708,7 @@ setMode("sim", false);
 initCalculator();
 if (has("chart")) drawChart($("chart")).catch(() => { $("chart-fallback").hidden = false; });
 if (has("key-status")) loadKeyStatus();
-refresh().then(() => { if (has("proposals")) loadProposals(); });
+refresh();
 if (has("activity")) loadActivity();
 setInterval(() => renderAll(false), 250);
 setInterval(refresh, 10000);

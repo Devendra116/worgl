@@ -61,6 +61,20 @@ export function parseChainJson(text) {
   return JSON.parse(text.replace(/"(start_ns|block_timestamp_ns)"\s*:\s*(\d{15,})/g, '"$1":"$2"'));
 }
 
+/** fetch that gives up after `ms`, so an unanswered request cannot leave the page waiting forever. */
+export async function fetchWithTimeout(url, options = {}, ms = 12000) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), ms);
+  try {
+    return await fetch(url, { ...options, signal: ctl.signal });
+  } catch (e) {
+    if (e?.name === "AbortError") throw new Error(`Timed out after ${ms / 1000} s waiting for ${new URL(url).host}`);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export class Chain {
   constructor(rpcUrl, tokenId) {
     this.rpcUrl = rpcUrl;
@@ -74,7 +88,7 @@ export class Chain {
       args_base64: btoa(JSON.stringify(args)),
       ...(blockId ? { block_id: blockId } : { finality: "final" }),
     };
-    const res = await fetch(this.rpcUrl, {
+    const res = await fetchWithTimeout(this.rpcUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params }),
@@ -85,7 +99,7 @@ export class Chain {
   }
   /** true if the NEAR account exists, false if it does not. Anything else is an error. */
   async accountExists(accountId) {
-    const res = await fetch(this.rpcUrl, {
+    const res = await fetchWithTimeout(this.rpcUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "view_account", finality: "final", account_id: accountId } }),
@@ -96,7 +110,7 @@ export class Chain {
     throw new Error(`view_account: ${JSON.stringify(j.error)}`);
   }
   async finalHeight() {
-    const res = await fetch(this.rpcUrl, {
+    const res = await fetchWithTimeout(this.rpcUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "block", params: { finality: "final" } }),
