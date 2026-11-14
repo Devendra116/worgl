@@ -828,15 +828,3 @@ fn stored_state_layout_is_identical_to_the_deployed_version() {
     let account = near_sdk::borsh::to_vec(&Account { shares: 0x0102030405060708090a0b0c0d0e0f10, claimed: true }).unwrap();
     assert_eq!(hex(&account), "100f0e0d0c0b0a09080706050403020101");
 }
-
-#[test]
-fn faucet_closes_before_it_can_drain_the_pot_and_never_touches_the_payout_cap() {
-    let mut c = deploy(FACTOR_REAL);
-    // pretend payouts have already put 450,000 + coins in circulation: treasury is just above half
-    c.total_shares = 450_000 * ONE_COIN;
-    claim_as(&mut c, &acct(1), 0);
-    assert_eq!(c.get_stats().day_paid.0, 0, "claims never use the payout cap");
-    // now push circulating so the treasury is within one claim of the 50% reserve
-    c.total_shares = 500_000 * ONE_COIN - CLAIM_AMOUNT / 2;
-    panics_with("Faucet is closed", || claim_as(&mut c, &acct(2), 0));
-}

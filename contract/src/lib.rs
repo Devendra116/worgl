@@ -23,9 +23,6 @@ const DAY_NS: u64 = 86_400 * NS_PER_SEC;
 /// Max paid out of the treasury per UTC day (faucet claims + `pay_out`), as basis
 /// points of the treasury balance at the start of that day.
 pub const DAILY_CAP_BPS: u128 = 1_000; // 10%
-/// The test faucet never takes the treasury below this share of the supply (basis points), so it cannot
-/// drain the pot that payouts draw from. Faucet claims do NOT count against the daily payout cap.
-pub const FAUCET_RESERVE_BPS: u128 = 5_000; // 50%
 /// Max length of the memo of a pay_out (the memo only goes into the event log).
 pub const MAX_MEMO_BYTES: usize = 140;
 
@@ -357,11 +354,7 @@ impl Worgl {
         let acc = self.accounts.get(&caller).copied().unwrap();
         require!(!acc.claimed, "Already claimed");
 
-        require!(
-            self.treasury_now(index) >= TOTAL_SUPPLY / 10_000 * FAUCET_RESERVE_BPS + CLAIM_AMOUNT,
-            "Faucet is closed: the treasury is kept for payouts"
-        );
-        self.pay_from_treasury(&caller, CLAIM_AMOUNT, index, Some("claim"), false);
+                self.pay_from_treasury(&caller, CLAIM_AMOUNT, index, Some("claim"), false);
         let mut acc = self.accounts.get(&caller).copied().unwrap();
         acc.claimed = true;
         self.accounts.insert(caller.clone(), acc);
