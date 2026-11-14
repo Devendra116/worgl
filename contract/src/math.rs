@@ -65,7 +65,7 @@ pub fn circulating_of(total_shares: u128, index: u128) -> u128 {
 }
 
 /// Shown when the index has decayed so far that `amount` coins no longer fit in u128 shares
-/// (about 29 days at the demo rate; centuries at the real rate). Reads still work.
+/// (about 177 days at the demo rate of 1% per hour; centuries at the real rate). Reads still work.
 pub const TOO_DECAYED: &str =
     "Index too small: the token has decayed too far to represent this amount in shares";
 
@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn pure_maths_model_invariants_every_step() {
         use rand::{rngs::StdRng, Rng, SeedableRng};
-        const FACTOR: u128 = 999_983_249_580_534_007_019_381_142; // demo: 1% / 10 min
+        const FACTOR: u128 = 999_997_208_243_937_652_252_849_536; // demo: 1% per hour
         const N: usize = 50;
         let mut rng = StdRng::seed_from_u64(7);
         let mut shares = [0u128; N];
@@ -124,7 +124,7 @@ mod tests {
         let mut t = 0u64;
         let (mut claims, mut transfers, mut payouts) = (0, 0, 0);
         for step in 0..5_000 {
-            t += rng.gen_range(0..=40);
+            t += rng.gen_range(0..=240); // up to 4 minutes a step: ~170 hours in total, about the same decay range as before
             let idx = rpow(FACTOR, t);
             assert!(idx > 0);
             let treasury = TOTAL_SUPPLY - circulating_of(total_shares, idx);

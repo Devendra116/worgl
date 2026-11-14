@@ -4,7 +4,7 @@ Usage: python3 sim/simulate.py [--period-days 1] [--out sim/simulation.png]
 
 The decay rate used here is *illustrative*: 1% per day, so that 60 days shows visible
 dynamics. (The real setting, 1% per 30 days, would only decay ~2% in 60 days; the demo
-setting, 1% per 10 minutes, would reduce everything to dust in under a day.)
+setting, 1% per hour, would melt almost everything within 60 days.)
 Everything else - rpow, shares, floor/ceil rules, treasury = supply - ceil(circulating) -
 is exactly the contract's arithmetic.
 """

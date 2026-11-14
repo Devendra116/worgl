@@ -17,13 +17,13 @@ import Base from "../layouts/Base.astro";
     <svg id="note" viewBox="0 0 960 420" role="img" aria-label="A sample Wörgl note. Its value counts down in real time, and a bar shows how much has melted into the town pot. Drag it sideways to move through time."></svg>
   </div>
   <div class="why prose">
-    <p><b>Nothing is broken.</b> In this demo a note loses 1% every 10 minutes. The lost coins are not burned: they land in the <span class="treasury">town pot</span>, the green number, where the community can spend them again.</p>
+    <p><b>Nothing is broken.</b> In this demo a note loses 1% every <span data-period>hour</span>. The lost coins are not burned: they land in the <span class="treasury">town pot</span>, the green number, where the community can spend them again.</p>
   </div>
 
   <div class="time-controls">
     <div class="group" id="note-rate" role="group" aria-label="Melt rate">
       <span class="label">Melt rate</span>
-      <button type="button" data-rate="demo" aria-pressed="true">This demo: 1% per 10 minutes</button>
+      <button type="button" data-rate="demo" aria-pressed="true">This demo: 1% per <span data-period>hour</span></button>
       <button type="button" data-rate="real" aria-pressed="false">Real setting: 1% per 30 days</button>
     </div>
     <div class="group">
@@ -45,7 +45,7 @@ import Base from "../layouts/Base.astro";
   <h2 id="plain-title">In plain words</h2>
   <ol class="plain-steps big">
     <li><b>There is one pot of 1,000,000 coins.</b> We call it the town pot. At the start, all the coins are in it.</li>
-    <li><b>Coins you hold slowly shrink.</b> Every balance loses 1% on a fixed schedule: 1% a month in real life, 1% every 10 minutes in this demo so you can watch it happen.</li>
+    <li><b>Coins you hold slowly shrink.</b> Every balance loses 1% on a fixed schedule: 1% a month in real life, 1% every <span data-period>hour</span> in this demo so you can watch it happen.</li>
     <li><b>What you lose is not burned.</b> It goes back into the pot, and a group vote can pay it out to people again. Spend your coins, and they keep going round.</li>
   </ol>
   <h3>Three words you will see</h3>

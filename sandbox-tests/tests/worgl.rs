@@ -6,7 +6,7 @@ use near_workspaces::types::{Gas, NearToken};
 use near_workspaces::{Account, Contract, Worker};
 use serde_json::{json, Value};
 
-const FACTOR_DEMO: &str = "999983249580534007019381142"; // 0.99^(1/600): 1% per 10 minutes
+const FACTOR_DEMO: &str = "999997208243937652252849536"; // 0.99^(1/3600): 1% per hour
 const ONE_COIN: u128 = 1_000_000_000_000_000_000;
 const DAY_NS: u64 = 86_400 * 1_000_000_000;
 /// ~0.298 s of block time per block in the sandbox, measured with fast_forward(1000).

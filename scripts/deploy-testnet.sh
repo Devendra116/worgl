@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy the WORGL token to TESTNET with the demo decay factor (1% per 10 minutes).
+# Deploy the WORGL token to TESTNET with the demo decay factor (1% per hour).
 #   scripts/deploy-testnet.sh <token-account-id> <governor-account-id>
 # The token account must already exist and its key must be in your near-cli keychain, e.g.
 #   near account create-account sponsor-by-faucet-service worgl.testnet autogenerate-new-keypair save-to-keychain network-config testnet create
@@ -13,9 +13,9 @@ check_testnet_id "$TOKEN"; check_testnet_id "$GOVERNOR"
 need_near
 [ -f "$WASM" ] || "$ROOT/scripts/build.sh"
 
-# Demo factor, computed from the Python reference maths (0.99^(1/600) in RAY=10^27).
+# Demo factor, computed from the Python reference maths (0.99^(1/3600) in RAY=10^27).
 FACTOR="$(py 'import sys; sys.path.insert(0, sys.argv[1]); import worgl_math as m; print(m.FACTOR_DEMO)' "$ROOT/sim")"
-echo "token:    $TOKEN"; echo "governor: $GOVERNOR"; echo "factor:   $FACTOR (1% per 10 minutes)"
+echo "token:    $TOKEN"; echo "governor: $GOVERNOR"; echo "factor:   $FACTOR (1% per hour)"
 echo "wasm:     $(sha256sum "$WASM" | cut -c1-16)...  $WASM"
 
 run near contract deploy "$TOKEN" use-file "$WASM" \

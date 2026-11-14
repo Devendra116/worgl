@@ -2,7 +2,7 @@ import { TOKEN_ID, RPC_URL, EXPLORER, ACTIVITY_API, REPO, CONNECT_URL } from "./
 import {
   Chain, ONE, RAY, TOTAL_SUPPLY, REAL_FACTOR, CLAIM_AMOUNT, MONTH, DAY, YEAR,
   rpow, indexAt, DEMO_FACTOR, balanceOfShares, circulatingOf, treasuryOf, formatCoins,
-  secondsPerPercent, describeDuration, usableUntil, parseCoins, formatCoinsRound,
+  secondsPerPercent, describeDuration, describeEvery, usableUntil, parseCoins, formatCoinsRound,
 } from "./worgl.js";
 import { initNote } from "./note.js";
 import { friendly, outcomeError, maxSendable, checkSend } from "./wallet-logic.js";
@@ -132,7 +132,7 @@ function renderRules() {
   const isDemo = per < 7 * 86400;
   const rows = [
     ledgerLine("Total supply", "1,000,000 WORGL", "Fixed. Nothing is ever minted."),
-    ledgerLine("Melt rate", `1% every ${describeDuration(per)}`, isDemo ? "This is the demo setting. The real setting is 1% every 30 days. It is fixed when the contract starts." : "Fixed when the contract starts."),
+    ledgerLine("Melt rate", `1% every ${describeEvery(per)}`, isDemo ? "This is the demo setting. The real setting is 1% every 30 days. It is fixed when the contract starts." : "Fixed when the contract starts."),
     ledgerLine("Test faucet", "100 WORGL, once per account", `Testnet only, so anyone can try it. A real DAO would pay out through proposals instead. A new account pays a storage deposit of ${(Number(BigInt(params.storage_cost)) / 1e24).toFixed(5)} NEAR; the contract never pays storage for anyone.`),
     ledgerLine("Daily payout cap", `${params.daily_cap_bps / 100}% of the town pot`, "Measured at the start of each UTC day. Faucet claims and DAO payouts share it."),
   ];
@@ -146,15 +146,25 @@ function renderNotice() {
   const per = secondsPerPercent(factor);
   const isDemo = per < 7 * 86400;
   const now = Date.now();
+  const { accurate, claimsStop, zero } = deadlines;
   let text = isDemo
-    ? `This demo melts 1% every ${describeDuration(per)} so you can watch it. The real setting is 1% a month. `
-    : `This copy melts 1% every ${describeDuration(per)}, the real setting. `;
-  const { claimsStop, zero } = deadlines;
-  if (claimsStop == null) text += "At this rate the maths stays accurate for centuries.";
-  else if (now < claimsStop) text += `This copy stays accurate until about ${fmtDate(claimsStop)}. After that, claims and payouts stop, and from about ${fmtDate(zero)} every balance reads zero.`;
-  else if (now < zero) text += `This copy is past its accurate period: claims and payouts have stopped, and from about ${fmtDate(zero)} every balance reads zero.`;
+    ? `This demo melts 1% every ${describeEvery(per)} so you can watch it. The real setting is 1% a month. `
+    : `This copy melts 1% every ${describeEvery(per)}, the real setting. `;
+  if (accurate == null) text += "At this rate the maths stays accurate for centuries.";
+  else if (now < accurate) text += `This copy stays accurate for every amount until about ${fmtDate(accurate)}. After that, large payouts start to fail; claims of 100 coins keep working until about ${fmtDate(claimsStop)}, and from about ${fmtDate(zero)} every balance reads zero.`;
+  else if (now < claimsStop) text += `This copy is past its accurate period: large payouts now fail. Claims of 100 coins keep working until about ${fmtDate(claimsStop)}, and from about ${fmtDate(zero)} every balance reads zero.`;
+  else if (now < zero) text += `Claims and payouts have stopped. From about ${fmtDate(zero)} every balance reads zero.`;
   else text += "This copy has fully melted: every balance now reads zero.";
   $("notice").textContent = text;
+  applyPeriodText(per);
+}
+
+/** Fill the "[data-period]" and "[data-accurate]" spans in the page copy from the contract's own numbers. */
+function applyPeriodText(per) {
+  document.querySelectorAll("[data-period]").forEach((e) => { e.textContent = describeEvery(per); });
+  const months = deadlines?.accurate != null ? (deadlines.accurate - Number(BigInt(params.start_ns) / 1_000_000n)) / (30.44 * 86_400_000) : null;
+  const text = months == null ? "centuries" : months >= 36 ? "years" : `${Math.floor(months * 2) / 2} months`;   // rounded down to the half month
+  document.querySelectorAll("[data-accurate]").forEach((e) => { e.textContent = text; });
 }
 
 // ---------------------------------------------------------------- the numbers on screen
@@ -380,7 +390,7 @@ function renderTry(f) {
     $("sim-join").disabled = joined;
     $("sim-claim").disabled = !joined || s.claimed;
     $("sim-send").disabled = !s.claimed || simSent || s.balance("You") < 10n * ONE;
-    for (const id of ["ff-10m", "ff-1h", "ff-1d"]) $(id).disabled = !joined;
+    for (const id of ["ff-1", "ff-2", "ff-3"]) $(id).disabled = !joined;
     markStep(1, joined); markStep(2, s.claimed); markStep(3, simSent); markStep(4, simSent);
     $("r-balance").textContent = joined ? fmt(s.balance("You")) : "–";
     $("r-friend").textContent = joined ? fmt(s.balance("Sam")) : "–";
@@ -421,8 +431,14 @@ $("sim-send").addEventListener("click", () => {
   catch (e) { setStatus("send-status", friendly(e), true); }
   renderTry(figures());
 });
-for (const [id, secs] of [["ff-10m", 600], ["ff-1h", 3600], ["ff-1d", 86400]]) {
-  $(id).addEventListener("click", () => { getSim().skip(secs); setStatus("send-status", ""); renderTry(figures()); });
+// "Skip" buttons move the simulation forward by 1, 24 and 168 melt steps (1 hour, 1 day and 7 days at the demo rate).
+{
+  const perSim = Math.max(1, Math.round(secondsPerPercent(simFactor())));
+  for (const [id, steps] of [["ff-1", 1], ["ff-2", 24], ["ff-3", 168]]) {
+    const secs = steps * perSim;
+    $(id).textContent = `Skip ${describeDuration(secs)}`;
+    $(id).addEventListener("click", () => { getSim().skip(secs); setStatus("send-status", ""); renderTry(figures()); });
+  }
 }
 
 /** What 100 coins become at the real rate. */

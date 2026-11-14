@@ -12,7 +12,7 @@ import Base from "../layouts/Base.astro";
     <details><summary>Who decides who gets paid?</summary><p>A DAO. It has three council members and a payout needs two of them. The contract then enforces a cap of 10% of the pot per day, whatever the DAO votes. The DAO cannot touch anyone's balance or change the melt.</p></details>
     <details><summary>Why is there a claim button?</summary><p>It is there for testing on testnet, so judges and visitors can try Wörgl without asking anyone for coins. A real DAO would not have an open claim. It would pay members out through proposals the council approves, and the contract's daily cap would still apply.</p></details>
     <details><summary>Can the test faucet be cheated?</summary><p>Yes, a little. Accounts are free, so one person can make many accounts and claim many times. The daily cap limits the damage. That is one more reason a real deployment would pay out through the DAO instead.</p></details>
-    <details><summary>What happens when the demo runs out?</summary><p>This copy melts fast on purpose. After a few weeks claims and payouts stop and balances read zero; the page shows the exact dates above. At the real rate of 1% a month it stays accurate for centuries.</p></details>
+    <details><summary>What happens when the demo runs out?</summary><p>This copy melts fast on purpose. It stays accurate for about <span data-accurate>4.5 months</span>. After that, large payouts start to fail, then claims stop, and finally every balance reads zero. The numbers page shows the exact dates, worked out from the contract. At the real rate of 1% a month it stays accurate for centuries.</p></details>
     <details><summary>Is it safe to use?</summary><p>It is a testnet demo with no value, and it has not been audited. The contract has no cross-contract calls and its supply is fixed, but treat it as a prototype.</p></details>
   </div>
 </section>
@@ -22,7 +22,7 @@ import Base from "../layouts/Base.astro";
   <h2 id="limits-title">What it doesn't do</h2>
   <ul class="plain">
     <li><b>It is a hackathon project on testnet.</b> Built for NEAR HACKATHON. Nothing here is real money, and nothing has been audited.</li>
-    <li><b>The demo melts fast.</b> This copy melts 1% every 10 minutes so you can watch it. At that rate it stays accurate for weeks, then claims stop and balances read zero. At the real rate of 1% a month, the maths stays precise for centuries.</li>
+    <li><b>The demo melts fast.</b> This copy melts 1% every <span data-period>hour</span> so you can watch it. At that rate it stays accurate for about <span data-accurate>4.5 months</span>, then large payouts and claims stop and balances read zero. At the real rate of 1% a month, the maths stays precise for centuries.</li>
     <li><b>The test faucet is not sybil-resistant.</b> Accounts are free, so one person can make many accounts and claim many times. The daily cap limits the damage; it does not stop it. Any vote that counted token holders would have the same flaw.</li>
     <li><b>The DAO is the only check on who is paid.</b> The contract enforces the daily cap and nothing else about recipients.</li>
     <li><b>No <code>ft_transfer_call</code>.</b> The token cannot be sent into contracts that need a callback.</li>

@@ -1,7 +1,7 @@
 // The sample note: an original design, drawn in SVG. It shows a 100-coin note whose value
 // is computed with the same integer maths as the contract (rpow, rounding down), so the figures
 // are what ft_balance_of would return. Drag the note, or use the controls, to move through time.
-import { ONE, RAY, rpow, formatCoinsRound as formatCoins, REAL_FACTOR, DAY, MONTH, YEAR, secondsPerPercent, describeDuration } from "./worgl.js";
+import { ONE, RAY, rpow, formatCoinsRound as formatCoins, REAL_FACTOR, DAY, MONTH, YEAR, secondsPerPercent, describeDuration, describeEvery } from "./worgl.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const FACE = 100n * ONE;
@@ -14,12 +14,15 @@ const el = (name, attrs = {}, text) => {
 const $ = (id) => document.getElementById(id);
 
 const RATES = {
-  demo: { max: 2n * DAY, label: "demo rate", presets: [["Now", 0n], ["10 minutes", 600n], ["1 hour", 3600n], ["1 day", DAY]] },
+  demo: { max: 14n * DAY, label: "demo rate", presets: [["Now", 0n], ["1 hour", 3600n], ["1 day", DAY], ["7 days", 7n * DAY]] }, // replaced from the contract's factor in initNote
   real: { max: 10n * YEAR, label: "real rate", presets: [["Now", 0n], ["1 month", MONTH], ["1 year", YEAR], ["10 years", 10n * YEAR]] },
 };
 
 export function initNote({ demoFactor }) {
   const svg = $("note");
+  // The demo presets are whole steps of the contract's own melt period (1, 24 and 168 steps; 14 days of range).
+  const perDemo = BigInt(Math.max(1, Math.round(secondsPerPercent(demoFactor))));
+  RATES.demo = { max: 336n * perDemo, label: "demo rate", presets: [["Now", 0n], ...[1n, 24n, 168n].map((k) => [describeDuration(Number(k * perDemo)), k * perDemo])] };
   const factors = { demo: demoFactor, real: REAL_FACTOR };
   let rate = "demo";
   let offset = 0n;               // seconds the visitor has dragged forward
@@ -95,7 +98,7 @@ export function initNote({ demoFactor }) {
     const per = secondsPerPercent(factor);
     const leftFrac = Number(value) / Number(FACE);
     meter.setLeft(leftFrac);
-    parts.sub.textContent = parts.subShort ? `Loses 1% every ${describeDuration(per)}.` : `This sample note loses 1% every ${describeDuration(per)}. What it loses goes to the town pot.`;
+    parts.sub.textContent = parts.subShort ? `Loses 1% every ${describeEvery(per)}.` : `This sample note loses 1% every ${describeEvery(per)}. What it loses goes to the town pot.`;
     parts.when.textContent = offset === 0n ? "Issued when you opened this page" : `${describeOffset(offset)}, at the ${RATES[rate].label}`;
     $("note-readout").textContent = offset === 0n
       ? `The sample note started at 100 coins and has melted ${formatCoins(melted, 4)} since you opened this page. That amount went to the town pot.`
@@ -188,8 +191,9 @@ function drawMeter(svg, narrow) {
       left.setAttribute("width", String(w - lostPx));
       melted.setAttribute("x", String(x + w - lostPx));
       melted.setAttribute("width", String(lostPx));
-      leftText.textContent = `${(f * 100).toFixed(2)}% left`;
-      meltedText.textContent = `${((1 - f) * 100).toFixed(2)}% melted into the town pot`;
+      const digits = 1 - f < 0.0001 ? 4 : 2;   // show more decimals while the loss is still tiny
+      leftText.textContent = `${(f * 100).toFixed(digits)}% left`;
+      meltedText.textContent = `${((1 - f) * 100).toFixed(digits)}% melted into the town pot`;
     },
   };
 }

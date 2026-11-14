@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import { createSim } from "./src/scripts/sim-demo.js";
 import { friendly, outcomeError, maxSendable, checkSend } from "./src/scripts/wallet-logic.js";
-import { rpow, balanceOfShares, circulatingOf, indexAt, formatCoins, Chain, ONE } from "./src/scripts/worgl.js";
+import { rpow, balanceOfShares, circulatingOf, indexAt, formatCoins, Chain, ONE, usableUntil, describeEvery, secondsPerPercent, DEMO_FACTOR } from "./src/scripts/worgl.js";
 const v = JSON.parse(readFileSync(new URL("../contract/tests/vectors.json", import.meta.url)));
 let bad = 0;
 const check = (name, ok) => { console.log((ok ? "PASS  " : "FAIL  ") + name); bad += !ok; };
@@ -21,7 +21,7 @@ for (const o of v.ops) {
 }
 check(`balance/circulating match ${v.ops.length} contract vectors`, ok);
 check("formatCoins truncates", formatCoins(1234567n * ONE + 5n * 10n ** 13n) === "1,234,567.0000" && formatCoins(100n * ONE) === "100.0000");
-check("elapsed time saturates before start", indexAt(999983249580534007019381142n, 10n ** 18n, 5n) === 10n ** 27n);
+check("elapsed time saturates before start", indexAt(999997208243937652252849536n, 10n ** 18n, 5n) === 10n ** 27n);
 
 // ---- wallet logic (no wallet needed)
 check("friendly: already claimed", friendly(new Error("Smart contract panicked: Already claimed")).startsWith("You have already claimed"));
@@ -31,7 +31,7 @@ check("friendly: unknown error is still a sentence with a next step", /^The tran
 check("outcomeError finds a failed receipt", outcomeError({ receipts_outcome: [{ outcome: { status: { SuccessValue: "" } } }, { outcome: { status: { Failure: { ActionError: "x" } } } }] }) !== null);
 check("outcomeError is null on success", outcomeError({ receipts_outcome: [{ outcome: { status: { SuccessValue: "" } } }], status: { SuccessValue: "" } }) === null);
 {
-  const F = 999983249580534007019381142n, start = 10n ** 18n;
+  const F = 999997208243937652252849536n, start = 10n ** 18n;
   const now = start + 1000n * 1_000_000_000n, shares = 100n * ONE;
   const nowBal = balanceOfShares(shares, indexAt(F, start, now));
   const max = maxSendable({ shares, factor: F, startNs: start, nowNs: now, leadSecs: 120n });
@@ -48,7 +48,7 @@ check("outcomeError is null on success", outcomeError({ receipts_outcome: [{ out
 
 // ---- the no-wallet simulation (same rounding rules as the contract)
 {
-  const F = 999983249580534007019381142n, SUPPLY = 1_000_000n * ONE;
+  const F = 999997208243937652252849536n, SUPPLY = 1_000_000n * ONE;
   const s = createSim(F);
   s.join(); s.claim();
   check("sim: claim gives 100 coins", s.balance("You") === 100n * ONE);
@@ -58,11 +58,24 @@ check("outcomeError is null on success", outcomeError({ receipts_outcome: [{ out
   check("sim: send moves 10 coins to Sam", s.balance("Sam") === 10n * ONE && s.balance("You") === 90n * ONE);
   check("sim: pot + circulating is exactly the supply", s.pot() + s.circulating() === SUPPLY);
   s.skip(86_400);
-  check("sim: a day of skipping melts to ~23.5%", s.balance("You") < 22n * ONE && s.balance("You") > 20n * ONE);
+  check("sim: a day of skipping melts 90 coins to ~70.7 (0.99^24)", s.balance("You") < 71n * ONE && s.balance("You") > 70n * ONE);
   check("sim: supply still conserved after melting", s.pot() + s.circulating() === SUPPLY);
   check("sim: the melt from You is positive and below what came in", s.meltedFromYou() > 0n && s.meltedFromYou() < 100n * ONE);
   let over = false; try { s.send(500n * ONE); } catch { over = true; }
   check("sim: sending more than you hold is refused", over);
+}
+
+// ---- the demo rate: 1% per hour, and the lifetime that follows from it (checked against Python, 80-digit decimals)
+{
+  const F = 999997208243937652252849536n;
+  check("DEMO_FACTOR is 0.99^(1/3600)", DEMO_FACTOR === F);
+  const within = (a, b) => (a > b ? a - b : b - a) * 10n ** 15n <= b;
+  check("rpow(factor, 3600) is within 1e-15 of 0.99", within(rpow(F, 3600n), 99n * 10n ** 25n));
+  check("the melt period is 1 hour and reads as 'hour'", Math.round(secondsPerPercent(F)) === 3600 && describeEvery(3600) === "hour" && describeEvery(600) === "10 minutes");
+  const u = usableUntil(F, 0n);
+  check("every amount up to the full supply fits for 11,985,557 s (138.7 days)", u.accurate === 11_985_557_000);
+  check("100-coin claims keep working until 15,284,673 s (176.9 days)", u.claimsStop === 15_284_673_000);
+  check("every balance reads zero from 22,269,034 s (257.7 days)", u.zero === 22_269_034_000);
 }
 
 if (process.env.TOKEN) {

@@ -5,7 +5,7 @@ use near_sdk::testing_env;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
-const FACTOR_DEMO: u128 = 999_983_249_580_534_007_019_381_142; // 0.99^(1/600)
+const FACTOR_DEMO: u128 = 999_997_208_243_937_652_252_849_536; // 0.99^(1/3600): 1% per hour
 const FACTOR_REAL: u128 = 999_999_996_122_555_619_592_348_752; // 0.99^(1/2592000)
 const T0: u64 = 1_700_000_000 * NS_PER_SEC;
 const TREASURY: &str = "worgl.testnet";
@@ -58,11 +58,14 @@ fn treasury(c: &Worgl) -> u128 {
 
 #[test]
 fn rpow_hits_one_percent_over_the_period() {
-    for (factor, period) in [(FACTOR_DEMO, 600u64), (FACTOR_REAL, 2_592_000u64)] {
-        let got = rpow(factor, period) as f64;
-        let want = 0.99 * RAY as f64;
-        assert!(((got - want) / want).abs() < 1e-15, "got {got} want {want}");
+    // exact integer check: |rpow(factor, period) - 0.99*RAY| <= 1e-15 * 0.99*RAY
+    let want = RAY / 100 * 99;
+    for (factor, period) in [(FACTOR_DEMO, 3600u64), (FACTOR_REAL, 2_592_000u64)] {
+        let got = rpow(factor, period);
+        assert!(got.abs_diff(want) * 1_000_000_000_000_000 <= want, "got {got} want {want}");
     }
+    // the demo factor is 0.99^(1/3600), computed with 80-digit decimals in sim/worgl_math.py
+    assert_eq!(FACTOR_DEMO, 999_997_208_243_937_652_252_849_536);
 }
 
 #[test]
@@ -155,10 +158,10 @@ fn idle_holder_decays_and_treasury_gains_exactly_that() {
     let mut c = deploy(FACTOR_DEMO);
     let a = acct(1);
     claim_as(&mut c, &a, 0);
-    set(a.as_str(), 600, 0);
+    set(a.as_str(), 3600, 0);
     let b = bal(&c, &a);
     assert!(b < CLAIM_AMOUNT);
-    // 1% per 10 minutes: 100 -> ~99
+    // 1% per hour: 100 -> ~99 after 3600 s
     let want = CLAIM_AMOUNT / 100 * 99;
     assert!(b.abs_diff(want) < CLAIM_AMOUNT / 1_000_000_000_000, "{b} vs {want}");
     // Treasury gains what the holder lost, within rounding: never more than lost, at most 1 base unit less.
@@ -226,8 +229,8 @@ fn state_changes_refused_when_index_is_zero() {
     let mut c = deploy(FACTOR_DEMO);
     let a = acct(1);
     claim_as(&mut c, &a, 0);
-    // ~ 60 days at the demo rate: RAY-scale index has rounded down to 0.
-    let far = 60 * 86_400;
+    // 400 days at the demo rate (1% per hour; index reaches 0 after ~258 days).
+    let far = 400 * 86_400;
     set(a.as_str(), far, 0);
     assert_eq!(c.get_index().0, 0);
     assert_eq!(bal(&c, &a), 0);
@@ -346,7 +349,7 @@ fn fuzz(factor: u128, max_step_secs: u64, seed: u64, ops: usize) {
 
 #[test]
 fn fuzz_100k_demo_rate() {
-    fuzz(FACTOR_DEMO, 6, 1, std::env::var("FUZZ_OPS").ok().and_then(|s| s.parse().ok()).unwrap_or(100_000));
+    fuzz(FACTOR_DEMO, 36, 1, std::env::var("FUZZ_OPS").ok().and_then(|s| s.parse().ok()).unwrap_or(100_000));
 }
 
 #[test]
@@ -511,14 +514,14 @@ fn panic_msg(f: impl FnOnce()) -> Option<String> {
     )
 }
 
-/// From 30 days (index tiny) to the largest timestamp a u64 can hold (index 0):
+/// From 190 days at 1% per hour (index tiny: claims stop after ~177 days, everything reads 0 after ~258) to the largest timestamp a u64 can hold (index 0):
 /// every view keeps answering and conserving supply; every state change either works or
 /// fails with a clear message (never a raw overflow or an unexplained panic).
 #[test]
 fn very_large_elapsed_time_views_survive_and_writes_fail_clearly() {
     let day = 86_400u64;
     let max_secs = (u64::MAX - T0) / NS_PER_SEC; // ~584 years of block time
-    let points = [0, day, 28 * day, 30 * day, 35 * day, 40 * day, 42 * day, 43 * day, 60 * day, 365 * day, 100 * 365 * day, max_secs];
+    let points = [0, day, 100 * day, 150 * day, 170 * day, 190 * day, 200 * day, 240 * day, 250 * day, 260 * day, 300 * day, 365 * day, 100 * 365 * day, max_secs];
 
     let mut c = deploy(FACTOR_DEMO);
     let (u1, u2, tre) = (acct(1), acct(2), TREASURY.parse::<AccountId>().unwrap());
@@ -561,7 +564,7 @@ fn very_large_elapsed_time_views_survive_and_writes_fail_clearly() {
         }
 
         // ---- state changes: before day 30 they work normally, so only probe the failure zone
-        if secs < 30 * day {
+        if secs < 190 * day {
             continue;
         }
         let clear = |m: &str| m.contains("Index is zero") || m.contains("Index too small") || m.contains("Not enough balance");
@@ -583,7 +586,7 @@ fn very_large_elapsed_time_views_survive_and_writes_fail_clearly() {
                 assert!(m.contains("Index is zero"), "{name}: {m:?}");
             }
         }
-        if secs >= 35 * day {
+        if secs >= 190 * day {
             // Tiny index: a 100-coin claim or a 10-coin payout can no longer be expressed in u128 shares.
             for (name, r) in [&results[0], &results[2]].map(|(n, r)| (*n, r)) {
                 let m = r.as_ref().unwrap_or_else(|| panic!("{name} must fail at t={secs}s"));

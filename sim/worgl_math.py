@@ -13,7 +13,7 @@ def factor_for(period_seconds: int, keep: str = "0.99") -> int:
     return int(f * RAY)  # int() truncates toward zero == floor for positives
 
 
-FACTOR_DEMO = factor_for(600)          # 1% per 10 minutes
+FACTOR_DEMO = factor_for(3600)         # 1% per hour (demo)
 FACTOR_REAL = factor_for(2_592_000)    # 1% per 30 days
 
 
@@ -53,7 +53,7 @@ def shares_ceil(amount: int, index: int) -> int:
 if __name__ == "__main__":
     print("FACTOR_DEMO =", FACTOR_DEMO)
     print("FACTOR_REAL =", FACTOR_REAL)
-    for name, f, p in (("demo", FACTOR_DEMO, 600), ("real", FACTOR_REAL, 2_592_000)):
+    for name, f, p in (("demo", FACTOR_DEMO, 3600), ("real", FACTOR_REAL, 2_592_000)):
         got = rpow(f, p)
         rel = abs(Decimal(got) - Decimal(99) * Decimal(RAY) / 100) / (Decimal(99) * Decimal(RAY) / 100)
         print(name, "rpow(period) =", got, "rel err =", rel)

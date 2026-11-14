@@ -72,7 +72,7 @@ Rounding rules, always in the contract's favour:
 | Parameter | Value | Notes |
 |---|---|---|
 | Total supply | 1,000,000 WORGL (18 decimals) | fixed; nothing is minted |
-| Melt rate, demo | 1% per 600 s (factor `0.99^(1/600)`) | what the testnet deployment uses |
+| Melt rate, demo | 1% per hour (factor `0.99^(1/3600)` = `999997208243937652252849536`) | what the testnet deployment uses; accurate for about 4.5 months |
 | Melt rate, real | 1% per 30 days (factor `0.99^(1/2592000)`) | the intended setting |
 | Test faucet (testnet only) | 100 WORGL, once per account | for trying it out; a real DAO would not have an open claim; needs the storage deposit attached (about 0.00126 NEAR; excess refunded) |
 | Daily cap | 10% of the treasury at the start of the UTC day | shared by faucet claims and payouts |
@@ -84,7 +84,7 @@ Rounding rules, always in the contract's favour:
 
 ## Limitations
 
-- **Demo rate vs real rate.** At the demo rate the index reaches 0 after about 43 days, and the share maths for large amounts overflows `u128` after about **28 days**, so the demo deployment is only meaningful for weeks. Past that point reads (balances, stats, index) keep working, while `claim`, `ft_transfer` and `pay_out` fail with `Index too small ...` and, once the index is 0, `Index is zero ...`. Leaving still works: `storage_unregister` is allowed at index 0, so nobody's storage deposit is trapped. At the real rate (1% a month) precision lasts **centuries**. The simulation chart uses an illustrative 1% per day.
+- **Demo rate vs real rate.** The demo melts 1% per hour so you can watch it. The share maths needs `amount × 10^27 ÷ index` to fit in `u128`, so a copy has a finite life that follows from its melt rate (computed from the contract's factor and start time, and shown on the numbers page). At 1% per hour: every amount up to the whole 1,000,000-coin supply fits for about **4.5 months** (138 days), claims of 100 coins keep working until about 5.8 months (177 days), and every balance reads zero from about 8.5 months (258 days). Past the accurate period reads (balances, stats, index) keep working, while `claim`, `ft_transfer` and `pay_out` fail with `Index too small ...` and, once the index is 0, `Index is zero ...`. Leaving still works: `storage_unregister` is allowed at index 0, so nobody's storage deposit is trapped. At the real rate (1% a month) precision lasts **centuries**. The simulation chart uses an illustrative 1% per day.
 - **Not sybil-resistant.** The faucet is a testing feature. Accounts are free, so one person can create many accounts and claim many times (limited only by the daily cap). A council seat or a holder is just an account; a holder can vote, move coins and vote again. Treat the faucet and the DAO vote as a demo, not one-person-one-vote.
 - **Payout control is the DAO policy.** The token only enforces the cap; there is no quorum inside the token. Two of three council members can pay out up to the day's remaining cap.
 - **`ft_transfer_call` is not implemented**, so the token cannot be sent into contracts that need a callback (no cross-contract calls by design).

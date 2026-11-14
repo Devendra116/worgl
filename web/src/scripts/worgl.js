@@ -111,13 +111,19 @@ export function firstSecond(factor, isDone, maxSecs = 10n ** 11n) {
  * Returns epoch milliseconds (Number) or null if beyond the search horizon.
  */
 export function usableUntil(factor, startNs) {
-  const minIndex = (CLAIM_AMOUNT * RAY + U128_MAX - 1n) / U128_MAX; // 100 coins needs index >= this
+  // An amount needs shares = amount * RAY / index to fit in u128, so it stops working once index < this.
+  const minIndex = (amount) => (amount * RAY + U128_MAX - 1n) / U128_MAX;
   const toMs = (s) => (s == null ? null : Number((startNs + s * 1_000_000_000n) / 1_000_000n));
+  const stopsFor = (amount) => toMs(firstSecond(factor, (i) => i < minIndex(amount)));
   return {
-    claimsStop: toMs(firstSecond(factor, (i) => i < minIndex)),
-    zero: toMs(firstSecond(factor, (i) => i === 0n)),
+    accurate: stopsFor(TOTAL_SUPPLY),    // every amount up to the whole supply still fits until here
+    claimsStop: stopsFor(CLAIM_AMOUNT),  // a 100-coin claim stops fitting here
+    zero: toMs(firstSecond(factor, (i) => i === 0n)),   // every balance reads 0 from here
   };
 }
+
+/** "every hour" / "every 10 minutes": the duration without a leading "1 ". */
+export const describeEvery = (secs) => { const d = describeDuration(secs); return d.startsWith("1 ") ? d.slice(2) : d; };
 
 /** "10 minutes", "1 hour", "30 days" for a number of seconds (rounded for display). */
 export function describeDuration(secs) {
@@ -138,5 +144,5 @@ export function parseCoins(text) {
   return BigInt(m[1]) * ONE + BigInt((m[2] ?? "").padEnd(18, "0") || "0");
 }
 
-/** The demo factor, 0.99^(1/600). Used only to draw the sample note when the chain cannot be read. */
-export const DEMO_FACTOR = 999983249580534007019381142n;
+/** The demo factor, 0.99^(1/3600). Used only to draw the sample note when the chain cannot be read. */
+export const DEMO_FACTOR = 999997208243937652252849536n;

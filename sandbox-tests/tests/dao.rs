@@ -7,7 +7,7 @@ use near_workspaces::types::{Gas, NearToken};
 use near_workspaces::Account;
 use serde_json::{json, Value};
 
-const FACTOR_DEMO: &str = "999983249580534007019381142";
+const FACTOR_DEMO: &str = "999997208243937652252849536"; // 1% per hour
 const ONE_COIN: u128 = 1_000_000_000_000_000_000;
 
 fn read(env: &str, default_rel: &str) -> Vec<u8> {
