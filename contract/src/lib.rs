@@ -262,6 +262,53 @@ impl Worgl {
         .emit();
     }
 
+    /// Send the caller's WHOLE balance to `receiver_id` and return the amount sent, in coins' base units.
+    ///
+    /// Balances melt every second, so a wallet cannot know the exact amount that will be left when a
+    /// transaction lands. This moves every one of the caller's shares instead of a fixed amount, so the
+    /// sender ends at exactly 0 and nothing is left behind. No share is rounded, created or destroyed:
+    /// `total_shares` does not change, so no stored field other than the two accounts is touched.
+    ///
+    /// Requires exactly 1 yoctoNEAR. The receiver must be registered and must be neither the caller nor
+    /// this contract's own account. Refused once the index has reached zero, and when there is nothing
+    /// to send. Emits the same NEP-141 `ft_transfer` event as `ft_transfer`, with the amount worked out
+    /// at this moment.
+    #[payable]
+    pub fn transfer_all(&mut self, receiver_id: AccountId, memo: Option<String>) -> U128 {
+        assert_one_yocto();
+        let index = self.live_index();
+        let sender_id = env::predecessor_account_id();
+        require!(sender_id != receiver_id, "Sender and receiver should be different");
+        require!(receiver_id != env::current_account_id(), "Cannot transfer to the treasury");
+        let mut sender = self
+            .accounts
+            .get(&sender_id)
+            .copied()
+            .unwrap_or_else(|| env::panic_str("Sender is not registered"));
+        let mut receiver = self
+            .accounts
+            .get(&receiver_id)
+            .copied()
+            .unwrap_or_else(|| env::panic_str("Receiver is not registered"));
+        require!(sender.shares > 0, "Nothing to send: you hold no coins");
+        let amount = balance_of_shares(sender.shares, index);
+        require!(amount > 0, "Nothing to send: your balance is zero");
+
+        receiver.shares += sender.shares; // overflow checks are on: this cannot wrap
+        sender.shares = 0;
+        self.accounts.insert(sender_id.clone(), sender);
+        self.accounts.insert(receiver_id.clone(), receiver);
+
+        FtTransfer {
+            old_owner_id: &sender_id,
+            new_owner_id: &receiver_id,
+            amount: amount.into(),
+            memo: memo.as_deref(),
+        }
+        .emit();
+        amount.into()
+    }
+
     // ---------------------------------------------------------------- faucet
 
     /// One-time faucet. A new account must attach the storage deposit; the contract
