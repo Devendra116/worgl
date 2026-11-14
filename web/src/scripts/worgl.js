@@ -29,19 +29,36 @@ export const balanceOfShares = (shares, index) => mulDivFloor(shares, index, RAY
 export const circulatingOf = (totalShares, index) => mulDivCeil(totalShares, index, RAY);
 export const treasuryOf = (circulating) => TOTAL_SUPPLY - circulating;
 
-/** 100000000000000000000n -> "100.0000" (truncated, never rounded up). */
-export function formatCoins(units, places = 4) {
+/** Integer `units` with `decimals` decimals -> "1,234.5678", truncated (never rounded up). BigInt only. */
+export function formatUnits(units, decimals, places = 4) {
   const neg = units < 0n;
   if (neg) units = -units;
-  const whole = units / ONE;
-  const frac = (units % ONE).toString().padStart(Number(DECIMALS), "0").slice(0, places);
-  const w = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const unit = 10n ** decimals;
+  const frac = (units % unit).toString().padStart(Number(decimals), "0").slice(0, places);
+  const w = (units / unit).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return (neg ? "-" : "") + w + (places ? "." + frac : "");
 }
 
+/** 100000000000000000000n -> "100.0000" (truncated, never rounded up). */
+export const formatCoins = (units, places = 4) => formatUnits(units, DECIMALS, places);
+
+/** yoctoNEAR -> "0.00126" NEAR (truncated). */
+export const formatNear = (yocto, places = 5) => formatUnits(yocto, 24n, places);
+
 /** Like formatCoins but rounds to the nearest unit of the last place; for display figures, not for checks. */
 export function formatCoinsRound(units, places = 4) {
+  if (places >= Number(DECIMALS)) return formatCoins(units, places);   // nothing to round at full precision
   return formatCoins(units + 5n * 10n ** (DECIMALS - BigInt(places) - 1n), places);
+}
+
+/**
+ * Parse a view result. The current contract sends the nanosecond timestamps (`start_ns`, `block_timestamp_ns`)
+ * as strings (U64). An earlier deployment sent them as plain JSON numbers above 2^53, which JSON.parse rounds
+ * to a multiple of 256, so those are quoted first and stay exact. Either way they arrive exact.
+ * Every money amount is a string (U128) and is never a JSON number.
+ */
+export function parseChainJson(text) {
+  return JSON.parse(text.replace(/"(start_ns|block_timestamp_ns)"\s*:\s*(\d{15,})/g, '"$1":"$2"'));
 }
 
 export class Chain {
@@ -64,7 +81,7 @@ export class Chain {
     });
     const j = await res.json();
     if (j.error || j.result?.error) throw new Error(`${method}: ${JSON.stringify(j.error ?? j.result.error)}`);
-    return JSON.parse(new TextDecoder().decode(new Uint8Array(j.result.result)));
+    return parseChainJson(new TextDecoder().decode(new Uint8Array(j.result.result)));
   }
   async finalHeight() {
     const res = await fetch(this.rpcUrl, {

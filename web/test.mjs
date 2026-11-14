@@ -4,8 +4,9 @@
 //   TOKEN=<token>.testnet node web/test.mjs # + live check
 import { readFileSync } from "node:fs";
 import { createSim } from "./src/scripts/sim-demo.js";
+import { parseCoins } from "./src/scripts/worgl.js";
 import { friendly, outcomeError, maxSendable, checkSend } from "./src/scripts/wallet-logic.js";
-import { rpow, balanceOfShares, circulatingOf, indexAt, formatCoins, Chain, ONE, usableUntil, describeEvery, secondsPerPercent, DEMO_FACTOR } from "./src/scripts/worgl.js";
+import { rpow, balanceOfShares, circulatingOf, indexAt, formatCoins, Chain, ONE, usableUntil, describeEvery, secondsPerPercent, DEMO_FACTOR, parseChainJson, formatNear, formatCoinsRound, formatUnits } from "./src/scripts/worgl.js";
 const v = JSON.parse(readFileSync(new URL("../contract/tests/vectors.json", import.meta.url)));
 let bad = 0;
 const check = (name, ok) => { console.log((ok ? "PASS  " : "FAIL  ") + name); bad += !ok; };
@@ -76,6 +77,24 @@ check("outcomeError is null on success", outcomeError({ receipts_outcome: [{ out
   check("every amount up to the full supply fits for 11,985,557 s (138.7 days)", u.accurate === 11_985_557_000);
   check("100-coin claims keep working until 15,284,673 s (176.9 days)", u.claimsStop === 15_284_673_000);
   check("every balance reads zero from 22,269,034 s (257.7 days)", u.zero === 22_269_034_000);
+}
+
+// ---- decimals and big numbers: everything that is money is a BigInt integer
+{
+  const raw = '{"start_ns":1794587405531738269,"block_timestamp_ns":1794588943763038952,"treasury":"999890519193570289949060","holders":3}';
+  const naive = JSON.parse(raw);
+  const exact = parseChainJson(raw);
+  check("JSON.parse alone would round a nanosecond timestamp (why parseChainJson exists)", BigInt(naive.start_ns) !== 1794587405531738269n);
+  check("parseChainJson keeps start_ns and block_timestamp_ns exact", BigInt(exact.start_ns) === 1794587405531738269n && BigInt(exact.block_timestamp_ns) === 1794588943763038952n);
+  const already = parseChainJson('{"start_ns":"1794587405531738269","block_timestamp_ns":"1794588943763038952"}');
+  check("parseChainJson also accepts timestamps the contract already sends as U64 strings", BigInt(already.start_ns) === 1794587405531738269n && BigInt(already.block_timestamp_ns) === 1794588943763038952n);
+  check("parseChainJson leaves U128 strings and small numbers alone", exact.treasury === "999890519193570289949060" && exact.holders === 3);
+  check("formatNear is exact: 1.26e21 yocto = 0.00126 NEAR", formatNear(1260000000000000000000n) === "0.00126" && formatNear(10n ** 24n) === "1.00000");
+  check("formatCoins: 0, 1 unit, negative and a 24-digit pot", formatCoins(0n) === "0.0000" && formatCoins(1n) === "0.0000" && formatCoins(-5n * ONE) === "-5.0000" && formatCoins(999890519193570289949060n) === "999,890.5191");
+  check("formatCoins at full 18 decimals shows the last unit", formatCoins(1n, 18) === "0.000000000000000001" && formatCoinsRound(1n, 18) === "0.000000000000000001");
+  check("formatCoinsRound rounds half up and formatCoins truncates", formatCoinsRound(99_99996n * 10n ** 13n, 4) === "100.0000" && formatCoins(99_99996n * 10n ** 13n, 4) === "99.9999");
+  // a balance the contract would hold: 123456789012345678901 base units, no float anywhere
+  check("a 21-digit amount round-trips through parseCoins and formatCoins without loss", formatCoins(123456789012345678901n, 18) === "123.456789012345678901" && parseCoins("123.456789012345678901") === 123456789012345678901n);
 }
 
 if (process.env.TOKEN) {

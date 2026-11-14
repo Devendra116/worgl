@@ -2,7 +2,7 @@ import { TOKEN_ID, RPC_URL, EXPLORER, ACTIVITY_API, REPO, CONNECT_URL } from "./
 import {
   Chain, ONE, RAY, TOTAL_SUPPLY, REAL_FACTOR, CLAIM_AMOUNT, MONTH, DAY, YEAR,
   rpow, indexAt, DEMO_FACTOR, balanceOfShares, circulatingOf, treasuryOf, formatCoins,
-  secondsPerPercent, describeDuration, describeEvery, usableUntil, parseCoins, formatCoinsRound,
+  secondsPerPercent, describeDuration, describeEvery, usableUntil, parseCoins, formatCoinsRound, formatNear,
 } from "./worgl.js";
 import { initNote } from "./note.js";
 import { friendly, outcomeError, maxSendable, checkSend } from "./wallet-logic.js";
@@ -133,7 +133,7 @@ function renderRules() {
   const rows = [
     ledgerLine("Total supply", "1,000,000 WORGL", "Fixed. Nothing is ever minted."),
     ledgerLine("Melt rate", `1% every ${describeEvery(per)}`, isDemo ? "This is the demo setting. The real setting is 1% every 30 days. It is fixed when the contract starts." : "Fixed when the contract starts."),
-    ledgerLine("Test faucet", "100 WORGL, once per account", `Testnet only, so anyone can try it. A real DAO would pay out through proposals instead. A new account pays a storage deposit of ${(Number(BigInt(params.storage_cost)) / 1e24).toFixed(5)} NEAR; the contract never pays storage for anyone.`),
+    ledgerLine("Test faucet", "100 WORGL, once per account", `Testnet only, so anyone can try it. A real DAO would pay out through proposals instead. A new account pays a storage deposit of ${formatNear(BigInt(params.storage_cost), 5)} NEAR; the contract never pays storage for anyone.`),
     ledgerLine("Daily payout cap", `${params.daily_cap_bps / 100}% of the town pot`, "Measured at the start of each UTC day. Faucet claims and DAO payouts share it."),
   ];
   const gov = link(params.governor, `${EXPLORER}/address/${params.governor}`);
