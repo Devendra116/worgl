@@ -8,7 +8,7 @@ use math::*;
 use near_contract_standards::fungible_token::events::FtTransfer;
 use near_contract_standards::fungible_token::metadata::{FungibleTokenMetadata, FT_METADATA_SPEC};
 use near_contract_standards::storage_management::{StorageBalance, StorageBalanceBounds};
-use near_sdk::json_types::U128;
+use near_sdk::json_types::{U128, U64};
 use near_sdk::store::LookupMap;
 use near_sdk::{
     assert_one_yocto, env, near, require, AccountId, NearToken, PanicOnDefault, Promise,
@@ -42,7 +42,9 @@ pub struct Params {
     /// Per-second decay factor, RAY (10^27) scale.
     pub factor: U128,
     pub ray: U128,
-    pub start_ns: u64,
+    /// Block time at init, in nanoseconds. A `U64` (a JSON string): it is above 2^53, which JavaScript
+    /// cannot hold exactly as a JSON number.
+    pub start_ns: U64,
     pub claim_amount: U128,
     /// yoctoNEAR a new account must attach to register (contract never pays storage).
     pub storage_cost: U128,
@@ -58,7 +60,8 @@ pub struct Stats {
     pub total_shares: U128,
     pub index: U128,
     pub holders: u64,
-    pub block_timestamp_ns: u64,
+    /// Time of the block being read, in nanoseconds. A `U64` (JSON string) for the same reason as `start_ns`.
+    pub block_timestamp_ns: U64,
     /// UTC day number (block_timestamp / 86400s)
     pub day: u64,
     /// treasury balance at the start of this UTC day
@@ -140,7 +143,7 @@ impl Worgl {
             total_supply: TOTAL_SUPPLY.into(),
             factor: self.factor.into(),
             ray: RAY.into(),
-            start_ns: self.start_ns,
+            start_ns: self.start_ns.into(),
             claim_amount: CLAIM_AMOUNT.into(),
             storage_cost: self.storage_cost.into(),
             daily_cap_bps: DAILY_CAP_BPS as u32,
@@ -168,7 +171,7 @@ impl Worgl {
             total_shares: self.total_shares.into(),
             index: index.into(),
             holders: self.holders,
-            block_timestamp_ns: env::block_timestamp(),
+            block_timestamp_ns: env::block_timestamp().into(),
         }
     }
 

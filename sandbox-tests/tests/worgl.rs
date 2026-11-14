@@ -119,10 +119,10 @@ async fn claim_transfer_time_passes_pay_out() -> anyhow::Result<()> {
     // time passes: ~20 minutes of sandbox time (demo rate: ~2% decay)
     let alice_before = e.bal(&e.alice).await;
     let treasury_before = e.treasury().await;
-    let t0 = e.stats().await["block_timestamp_ns"].as_u64().unwrap();
+    let t0 = u(&e.stats().await["block_timestamp_ns"]) as u64; // a U64 string
     e.worker.fast_forward(4_000).await?;
     let st = e.stats().await;
-    let elapsed_s = (st["block_timestamp_ns"].as_u64().unwrap() - t0) as f64 / 1e9;
+    let elapsed_s = (u(&st["block_timestamp_ns"]) as u64 - t0) as f64 / 1e9;
     assert!(elapsed_s > 600.0, "fast_forward must advance block_timestamp (advanced {elapsed_s}s)");
     let alice_after = e.bal(&e.alice).await;
     assert!(alice_after < alice_before, "an idle holder must have less after time passes");
@@ -180,7 +180,7 @@ async fn daily_cap_holds_and_resets_across_a_day_boundary() -> anyhow::Result<()
     assert!(r.is_failure() && format!("{:?}", r.failures()).contains("Daily payout cap exceeded"));
 
     // cross the next UTC midnight (the day is read from the chain, not assumed)
-    let now = e.stats().await["block_timestamp_ns"].as_u64().unwrap();
+    let now = u(&e.stats().await["block_timestamp_ns"]) as u64;
     let secs_to_midnight = (DAY_NS - now % DAY_NS) as f64 / 1e9;
     let blocks = (secs_to_midnight * BLOCKS_PER_SEC) as u64 + 2_000;
     e.worker.fast_forward(blocks).await?;

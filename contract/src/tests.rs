@@ -611,3 +611,37 @@ fn very_large_elapsed_time_views_survive_and_writes_fail_clearly() {
     assert_eq!(c.total_shares, 0);
     assert_eq!(treasury(&c), TOTAL_SUPPLY);
 }
+
+// ------------------------------------------------- JSON interface: big integers are strings
+
+/// JavaScript clients parse JSON numbers as doubles, exact only up to 2^53. Nothing in the views may be a
+/// JSON number above that; large values (amounts, nanosecond timestamps) must be strings (U128 / U64).
+fn assert_no_big_json_numbers(v: &Value, path: &str) {
+    match v {
+        Value::Number(n) => {
+            let big = n.as_u64().map_or(n.as_f64().map_or(false, |f| f.abs() > 9.007e15), |x| x > (1u64 << 53));
+            assert!(!big, "{path} is a JSON number above 2^53: {n}");
+        }
+        Value::Object(m) => m.iter().for_each(|(k, x)| assert_no_big_json_numbers(x, &format!("{path}.{k}"))),
+        Value::Array(a) => a.iter().enumerate().for_each(|(i, x)| assert_no_big_json_numbers(x, &format!("{path}[{i}]"))),
+        _ => {}
+    }
+}
+
+#[test]
+fn views_send_nanosecond_timestamps_as_strings() {
+    let mut c = deploy(FACTOR_DEMO);
+    let a = acct(1);
+    claim_as(&mut c, &a, 100);
+    set("viewer.testnet", 200, 0);
+    let params = serde_json::to_value(c.get_params()).unwrap();
+    let stats = serde_json::to_value(c.get_stats()).unwrap();
+    let account = serde_json::to_value(c.get_account(a)).unwrap();
+    // the two timestamp fields are exact decimal strings
+    assert_eq!(params["start_ns"], Value::String(T0.to_string()));
+    assert_eq!(stats["block_timestamp_ns"], Value::String((T0 + 200 * NS_PER_SEC).to_string()));
+    // and no view returns any JSON number a JavaScript client would round
+    for (name, v) in [("get_params", &params), ("get_stats", &stats), ("get_account", &account)] {
+        assert_no_big_json_numbers(v, name);
+    }
+}
