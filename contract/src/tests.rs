@@ -516,7 +516,7 @@ fn governor_has_no_other_powers() {
 }
 
 #[test]
-fn daily_cap_applies_to_pay_out_and_faucet_and_resets_at_utc_midnight() {
+fn daily_cap_applies_to_pay_out_only_and_resets_at_utc_midnight() {
     let mut c = deploy(FACTOR_REAL);
     let a = acct(1);
     let b = acct(2);
@@ -526,25 +526,25 @@ fn daily_cap_applies_to_pay_out_and_faucet_and_resets_at_utc_midnight() {
     let s = c.get_stats();
     assert_eq!(s.day_start_treasury.0, TOTAL_SUPPLY);
     assert_eq!(s.day_cap.0, TOTAL_SUPPLY / 10);
-    assert_eq!(s.day_paid.0, 2 * CLAIM_AMOUNT, "faucet claims count against the cap");
+    assert_eq!(s.day_paid.0, 0, "faucet claims do not count against the payout cap");
 
     pay_out_as(&mut c, GOVERNOR, &a, 60_000, 20);
     set(TREASURY, 21, 0);
-    assert_eq!(c.get_stats().day_paid.0, 2 * CLAIM_AMOUNT + 60_000 * ONE_COIN);
-    // 60,200 + 60,000 > 100,000: refused
+    assert_eq!(c.get_stats().day_paid.0, 60_000 * ONE_COIN);
+    // 60,000 + 60,000 > 100,000: refused
     panics_with("Daily payout cap exceeded", || pay_out_as(&mut c, GOVERNOR, &b, 60_000, 30));
-    // exactly up to the cap is allowed: 100,000 - 60,200 = 39,800 coins
+    // exactly up to the cap is allowed: 100,000 - 60,000 = 40,000 coins
     set(TREASURY, 31, 0);
     let rem = c.get_stats().day_remaining.0;
-    assert_eq!(rem, 39_800 * ONE_COIN);
+    assert_eq!(rem, 40_000 * ONE_COIN);
     panics_with("Daily payout cap exceeded", || {
         set(GOVERNOR, 32, 0);
         c.pay_out(b.clone(), (rem + 1).into(), None);
     });
     set(GOVERNOR, 33, 0);
     c.pay_out(b.clone(), rem.into(), None);
-    // the faucet is now closed for the rest of the day too
-    panics_with("Daily payout cap exceeded", || claim_as(&mut c, &acct(50), 40));
+    // the payout cap is spent, but the faucet is a separate thing and still works
+    claim_as(&mut c, &acct(50), 40);
 
     // just before UTC midnight still capped; at midnight it resets, to 10% of the NEW day-start treasury
     panics_with("Daily payout cap exceeded", || pay_out_as(&mut c, GOVERNOR, &b, 1, 6399));
@@ -555,8 +555,8 @@ fn daily_cap_applies_to_pay_out_and_faucet_and_resets_at_utc_midnight() {
     assert_eq!(s.day_start_treasury.0, expect_start);
     assert_eq!(s.day_paid.0, 0);
     assert_eq!(s.day_cap.0, expect_start / 10);
-    // ~100,000 coins left the treasury today, so the new cap is ~10% of ~900,000, not of 1,000,000
-    assert!(expect_start >= TOTAL_SUPPLY - 100_000 * ONE_COIN && expect_start < TOTAL_SUPPLY - 99_000 * ONE_COIN);
+    // ~100,300 coins (100,000 paid out + 3 faucet claims) left the treasury today, so the new cap is ~10% of ~900,000
+    assert!(expect_start >= TOTAL_SUPPLY - 100_400 * ONE_COIN && expect_start < TOTAL_SUPPLY - 99_000 * ONE_COIN);
     pay_out_as(&mut c, GOVERNOR, &b, 50_000, 6401);
     set(TREASURY, 6402, 0);
     assert_eq!(c.get_stats().day_paid.0, 50_000 * ONE_COIN);
@@ -819,9 +819,24 @@ fn stored_state_layout_is_identical_to_the_deployed_version() {
     let mut c = deploy(FACTOR_DEMO);
     claim_as(&mut c, &acct(1), 0);
     claim_as(&mut c, &acct(2), 5);
+    // the deployed code counted claims in day_paid; the new code does not. The field is the same, so put
+    // the value the deployed code stored and compare the bytes.
+    c.day_paid = 2 * CLAIM_AMOUNT;
     let bytes = near_sdk::borsh::to_vec(&c).unwrap();
     assert_eq!(bytes.len(), 124);
     assert_eq!(hex(&bytes), "0100000061701428ade8b193d70a0000000000000080b53fe3e38c6a48a52d3b030000000000002a36fe9c97170200000000000000000030e03b3c034e4400000000000000db4c000000000000000000a1edccce1bc2d3000000000000000020c65abc8ed70a000000000000000b00000064616f2e746573746e6574");
     let account = near_sdk::borsh::to_vec(&Account { shares: 0x0102030405060708090a0b0c0d0e0f10, claimed: true }).unwrap();
     assert_eq!(hex(&account), "100f0e0d0c0b0a09080706050403020101");
+}
+
+#[test]
+fn faucet_closes_before_it_can_drain_the_pot_and_never_touches_the_payout_cap() {
+    let mut c = deploy(FACTOR_REAL);
+    // pretend payouts have already put 450,000 + coins in circulation: treasury is just above half
+    c.total_shares = 450_000 * ONE_COIN;
+    claim_as(&mut c, &acct(1), 0);
+    assert_eq!(c.get_stats().day_paid.0, 0, "claims never use the payout cap");
+    // now push circulating so the treasury is within one claim of the 50% reserve
+    c.total_shares = 500_000 * ONE_COIN - CLAIM_AMOUNT / 2;
+    panics_with("Faucet is closed", || claim_as(&mut c, &acct(2), 0));
 }

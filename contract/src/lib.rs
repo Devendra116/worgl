@@ -23,6 +23,9 @@ const DAY_NS: u64 = 86_400 * NS_PER_SEC;
 /// Max paid out of the treasury per UTC day (faucet claims + `pay_out`), as basis
 /// points of the treasury balance at the start of that day.
 pub const DAILY_CAP_BPS: u128 = 1_000; // 10%
+/// The test faucet never takes the treasury below this share of the supply (basis points), so it cannot
+/// drain the pot that payouts draw from. Faucet claims do NOT count against the daily payout cap.
+pub const FAUCET_RESERVE_BPS: u128 = 5_000; // 50%
 /// Max length of the memo of a pay_out (the memo only goes into the event log).
 pub const MAX_MEMO_BYTES: usize = 140;
 
@@ -354,7 +357,11 @@ impl Worgl {
         let acc = self.accounts.get(&caller).copied().unwrap();
         require!(!acc.claimed, "Already claimed");
 
-        self.pay_from_treasury(&caller, CLAIM_AMOUNT, index, Some("claim"));
+        require!(
+            self.treasury_now(index) >= TOTAL_SUPPLY / 10_000 * FAUCET_RESERVE_BPS + CLAIM_AMOUNT,
+            "Faucet is closed: the treasury is kept for payouts"
+        );
+        self.pay_from_treasury(&caller, CLAIM_AMOUNT, index, Some("claim"), false);
         let mut acc = self.accounts.get(&caller).copied().unwrap();
         acc.claimed = true;
         self.accounts.insert(caller.clone(), acc);
@@ -373,7 +380,7 @@ impl Worgl {
     /// the governor's ONLY power: it cannot change any parameter, cannot move, freeze or
     /// burn any holder's coins, and cannot mint (the supply is fixed). A payout comes out
     /// of the treasury and counts against the daily cap (10% of the treasury balance at
-    /// the start of the UTC day, shared with faucet claims).
+    /// the start of the UTC day). Faucet claims are separate and do not count against it.
     pub fn pay_out(&mut self, recipient: AccountId, amount: U128, memo: Option<String>) {
         require!(
             env::predecessor_account_id() == self.governor,
@@ -384,7 +391,7 @@ impl Worgl {
         let memo = memo.unwrap_or_default();
         require!(memo.len() <= MAX_MEMO_BYTES, "Memo too long");
         let note = format!("payout:{memo}");
-        self.pay_from_treasury(&recipient, amount.into(), index, Some(&note));
+        self.pay_from_treasury(&recipient, amount.into(), index, Some(&note), true);
     }
 
     // ------------------------------------------------------ NEP-145 storage
@@ -552,16 +559,19 @@ impl Worgl {
         amount: u128,
         index: u128,
         memo: Option<&str>,
+        counts_toward_cap: bool,
     ) {
         require!(amount > 0, "The amount should be a positive number");
         require!(amount <= self.treasury_now(index), "Treasury has insufficient funds");
         self.roll_day();
-        let cap = Self::cap_of(self.day_start_treasury);
-        require!(
-            self.day_paid.checked_add(amount).map_or(false, |t| t <= cap),
-            "Daily payout cap exceeded"
-        );
-        self.day_paid += amount;
+        if counts_toward_cap {
+            let cap = Self::cap_of(self.day_start_treasury);
+            require!(
+                self.day_paid.checked_add(amount).map_or(false, |t| t <= cap),
+                "Daily payout cap exceeded"
+            );
+            self.day_paid += amount;
+        }
         let gain = shares_floor(amount, index);
         let mut acc = self
             .accounts
