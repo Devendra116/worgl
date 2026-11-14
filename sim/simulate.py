@@ -26,7 +26,8 @@ def run(scenario_hoarders: int, factor: int, seed: int):
     total_shares = 0
     # wallets [0, hoarders) hoard; the rest spend. We track wallet 0 (hoarder) and N-1 (spender).
     hoarder = lambda i: i < scenario_hoarders  # wallet 0 is also the tracked idle wallet
-    hist = {"treasury": [], "circulating": [], "hoarder": [], "spender": []}
+    hist = {"treasury": [], "circulating": [], "hoarder": [], "spender": [], "paid": [], "melted": []}
+    paid_cum = 0   # coins that have left the pot so far (faucet claims and payouts)
 
     # Two tracked wallets: "idle" (wallet 0) claims once and then never moves or receives,
     # "paid" (wallet N-1) receives a regular daily treasury payout on top of its claim.
@@ -37,6 +38,7 @@ def run(scenario_hoarders: int, factor: int, seed: int):
     for i in range(N):
         s = shares_floor(100 * 10**DECIMALS, idx)
         shares[i] += s; total_shares += s
+    paid_cum += N * 100 * 10**DECIMALS
 
     for day in range(DAYS + 1):
         idx = index_at(factor, day * DAY)
@@ -45,6 +47,8 @@ def run(scenario_hoarders: int, factor: int, seed: int):
         assert circ <= TOTAL_SUPPLY
         hist["treasury"].append(treasury)
         hist["circulating"].append(circ)
+        hist["paid"].append(paid_cum)
+        hist["melted"].append(max(0, paid_cum - circ))   # what came back to the pot = what left minus what is still held
         hist["hoarder"].append(balance(shares[0], idx))
         hist["spender"].append(balance(shares[N - 1], idx))
         if day == DAYS:
@@ -74,6 +78,7 @@ def run(scenario_hoarders: int, factor: int, seed: int):
         for i in range(1, N):
             s = shares_floor(each, idx)
             shares[i] += s; total_shares += s
+        paid_cum += each * (N - 1)
     return hist
 
 
@@ -93,9 +98,13 @@ def main():
                  ("Mixed (50 / 50)", 50)]
     fig, axes = plt.subplots(2, 3, figsize=(15, 8), sharex=True)
     C = 10**DECIMALS
+    export = {"period_days": a.period_days, "payout_pct_of_treasury": PAYOUT_PCT_OF_TREASURY, "days": list(range(DAYS + 1)), "runs": []}
     for col, (title, hoarders) in enumerate(scenarios):
         h = run(hoarders, factor, seed=col + 1)
         days = list(range(DAYS + 1))
+        r2 = lambda xs: [round(x / C, 2) for x in xs]
+        export["runs"].append({"name": title, "hoarders": hoarders, "treasury": r2(h["treasury"]),
+                               "circulating": r2(h["circulating"]), "paid_out": r2(h["paid"]), "melted_back": r2(h["melted"]), "idle": r2(h["hoarder"]), "paid": r2(h["spender"])})
         ax = axes[0][col]
         ax.plot(days, [x / C for x in h["treasury"]], label="Treasury", color="#1f77b4")
         ax.plot(days, [x / C for x in h["circulating"]], label="Circulating", color="#d62728")
@@ -120,6 +129,14 @@ def main():
     fig.tight_layout(rect=(0, 0.03, 1, 1))
     fig.savefig(a.out, dpi=110)
     print("wrote", a.out)
+    # The web page draws its own chart from this file (same numbers, page fonts and colours).
+    same = all(r["treasury"] == export["runs"][0]["treasury"] and r["circulating"] == export["runs"][0]["circulating"] and r["paid_out"] == export["runs"][0]["paid_out"] and r["melted_back"] == export["runs"][0]["melted_back"] for r in export["runs"])
+    export["totals_identical_across_runs"] = same
+    import json
+    json_path = os.path.splitext(a.out)[0] + ".json"
+    with open(json_path, "w") as f:
+        json.dump(export, f, separators=(",", ":"))
+    print("wrote", json_path, "| treasury and circulating identical in all runs:", same)
 
 
 if __name__ == "__main__":

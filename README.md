@@ -13,7 +13,9 @@ Prerequisites: Rust (with the `wasm32-unknown-unknown` target), `cargo-near`, Py
 1. Build and test everything locally: `scripts/test.sh` → prints `ALL TESTS PASSED` (about 6 minutes from a fresh clone, longer if `neard` and the Sputnik wasm must be downloaded). It runs the Python reference maths, 30 Rust unit and property tests (two 100,000-step fuzz tests), builds the wasm with cargo-near, runs two near-workspaces sandbox tests, and checks the web page's maths against the contract's test vectors.
 2. Build only the wasm: `scripts/build.sh` → prints the wasm's sha256; the file is `contract/target/near/worgl_token.wasm`.
 3. Regenerate the chart: `python3 sim/simulate.py` → writes `sim/simulation.png`.
-4. Run the page locally: `cd web && python3 -m http.server 8000`, then open `http://localhost:8000/?token=<token-account>` → you see treasury, circulating and the day's allowance ticking. Connect a testnet wallet, press **Claim 100 WORGL** → your balance appears and starts melting.
+4. Run the website locally (an [Astro](https://astro.build) static site, six pages with clean URLs: `/`, `/idea`, `/try`, `/numbers`, `/maths`, `/faq`): `cd web && npm install && npm run dev`, then open `http://localhost:4321/` → the note counts down, **Try it** walks through four steps (simulated in the browser with the contract's maths, or with your own testnet wallet), and **The numbers** shows treasury, circulating, the day's allowance and recent activity read live with no wallet. Connect a testnet wallet and press **Claim 100 test coins** → your balance appears and starts melting. The claim button is a testnet convenience; a real DAO would pay out through approved proposals instead.
+   Build for hosting: `npm run build` writes plain files to `web/dist/`. On Vercel, Netlify or Cloudflare Pages set the root directory to `web`, the build command to `npm run build` and the output directory to `dist`. For a sub-path host such as GitHub Pages project sites, set `base` in `web/astro.config.mjs`. Set `TOKEN_ID` in `web/src/scripts/config.js` (or open any page with `?token=<account>`).
+   Web tests: `node web/test.mjs` (add `TOKEN=<token-account>` for a live read-only check).
 5. Check a deployment without any keys: `scripts/verify-testnet.sh <token-account> [<holder> ...]` → `ALL CHECKS PASSED` after recomputing the index, supply conservation, the daily cap and each holder's balance from raw chain state, all pinned to one block.
 6. Slow test (about 22 minutes): `scripts/test.sh --slow` additionally runs the sandbox test that crosses a UTC midnight to show the daily cap resets.
 
@@ -34,7 +36,7 @@ Keys never go in the repo. `near` signs from your OS keychain; create or import 
 
 - A Rust contract (near-sdk 5.30.1) implementing NEP-141 (fungible token), NEP-145 (storage management) and NEP-148 (metadata). Claims and payouts emit NEP-141 `ft_transfer` events from the contract account.
 - Governance is a standard **Sputnik DAO v2** created from the testnet factory `sputnikv2.testnet`. The token does not run its own vote and makes **no cross-contract calls**; the DAO calls `pay_out` as a normal `FunctionCall` proposal.
-- Wallet sign-in on the page uses `@hot-labs/near-connect`; all reads are plain RPC view calls.
+- Wallet sign-in on the page uses `@hot-labs/near-connect` (0.12.0, loaded from esm.sh; NEAR's docs recommend it, Wallet Selector is deprecated); all reads are plain RPC view calls. Recent activity comes from the NearBlocks v3 API.
 - Testnet: token `devworgl-token.testnet`, DAO `devworgl-dao.sputnikv2.testnet`.
 
 ## The mechanic
@@ -61,7 +63,7 @@ Rounding rules, always in the contract's favour:
 
 **Conservation test.** `contract/src/tests.rs` and `math.rs` run random claims, transfers, payouts and time jumps and check after steps that supply is conserved, no balance exceeds circulating, and rounding only ever moves value to the treasury. A pure-maths test checks the invariants after **every** one of 5,000 steps; two VM-level fuzz tests run 100,000 steps each (demo and real factor). A Python reference model (`sim/worgl_math.py`) generates 409 test vectors the Rust and the web JavaScript must reproduce exactly.
 
-**Simulation.** `sim/simulation.png` runs 60 days, 100 wallets, three scenarios, at an **illustrative 1% per day** (the real setting is 1% per 30 days) with payouts of 0.5% of the treasury per day. At day 60: treasury 796,966, circulation 203,034, an idle holder's 100 coins are down to 54.72. Treasury and circulation are identical across scenarios because transfers cannot avoid the melt.
+**Simulation.** (The site draws its own version of this chart from `sim/simulation.json`, with the paid-out and melted-back totals spelled out.) `sim/simulation.png` runs 60 days, 100 wallets, three scenarios, at an **illustrative 1% per day** (the real setting is 1% per 30 days) with payouts of 0.5% of the treasury per day. At day 60: treasury 796,966, circulation 203,034, an idle holder's 100 coins are down to 54.72. Treasury and circulation are identical across scenarios because transfers cannot avoid the melt.
 
 ![Simulation](sim/simulation.png)
 
@@ -72,7 +74,7 @@ Rounding rules, always in the contract's favour:
 | Total supply | 1,000,000 WORGL (18 decimals) | fixed; nothing is minted |
 | Melt rate, demo | 1% per 600 s (factor `0.99^(1/600)`) | what the testnet deployment uses |
 | Melt rate, real | 1% per 30 days (factor `0.99^(1/2592000)`) | the intended setting |
-| Faucet | 100 WORGL, once per account | needs the storage deposit attached (about 0.00126 NEAR; excess refunded) |
+| Test faucet (testnet only) | 100 WORGL, once per account | for trying it out; a real DAO would not have an open claim; needs the storage deposit attached (about 0.00126 NEAR; excess refunded) |
 | Daily cap | 10% of the treasury at the start of the UTC day | shared by faucet claims and payouts |
 | Transfer | exactly 1 yoctoNEAR attached | NEP-141 |
 | Governor | set once at init (a Sputnik DAO here) | can only call `pay_out` |
@@ -83,7 +85,7 @@ Rounding rules, always in the contract's favour:
 ## Limitations
 
 - **Demo rate vs real rate.** At the demo rate the index reaches 0 after about 43 days, and the share maths for large amounts overflows `u128` after about **28 days**, so the demo deployment is only meaningful for weeks. Past that point reads (balances, stats, index) keep working, while `claim`, `ft_transfer` and `pay_out` fail with `Index too small ...` and, once the index is 0, `Index is zero ...`. Leaving still works: `storage_unregister` is allowed at index 0, so nobody's storage deposit is trapped. At the real rate (1% a month) precision lasts **centuries**. The simulation chart uses an illustrative 1% per day.
-- **Not sybil-resistant.** Accounts are free, so one person can create many accounts and claim the faucet many times (limited only by the daily cap). A council seat or a holder is just an account; a holder can vote, move coins and vote again. Treat the faucet and the DAO vote as a demo, not one-person-one-vote.
+- **Not sybil-resistant.** The faucet is a testing feature. Accounts are free, so one person can create many accounts and claim many times (limited only by the daily cap). A council seat or a holder is just an account; a holder can vote, move coins and vote again. Treat the faucet and the DAO vote as a demo, not one-person-one-vote.
 - **Payout control is the DAO policy.** The token only enforces the cap; there is no quorum inside the token. Two of three council members can pay out up to the day's remaining cap.
 - **`ft_transfer_call` is not implemented**, so the token cannot be sent into contracts that need a callback (no cross-contract calls by design).
 - **Full-access key.** At the time of writing, `devworgl-token.testnet` still holds one full-access key, so its owner could redeploy different code. `deploy-testnet.sh` prints (does not run) the irreversible command that deletes it; do that only for a deployment you are finished with.
@@ -96,7 +98,7 @@ Rounding rules, always in the contract's favour:
 
 ## Built during NEAR HACKATHON
 
-Libraries and tools: `near-sdk` 5.30.1, `near-contract-standards` 5.30.1, `uint` 0.10, `rand` 0.8 (tests), `near-workspaces` 0.24.0 with `tokio`, `anyhow`, `serde_json`, `base64` (sandbox tests), `cargo-near` 0.23, `near-cli-rs` 0.31, near-sandbox `neard` 2.14.1, Sputnik DAO v2 (the wasm the testnet factory deploys), `@hot-labs/near-connect` 0.12.0 (page), Python with `matplotlib` and `numpy` (simulation).
+Libraries and tools: `near-sdk` 5.30.1, `near-contract-standards` 5.30.1, `uint` 0.10, `rand` 0.8 (tests), `near-workspaces` 0.24.0 with `tokio`, `anyhow`, `serde_json`, `base64` (sandbox tests), `cargo-near` 0.23, `near-cli-rs` 0.31, near-sandbox `neard` 2.14.1, Sputnik DAO v2 (the wasm the testnet factory deploys), Astro 7.4.12 (website framework, static output), `@hot-labs/near-connect` 0.12.0 (page), Python with `matplotlib` and `numpy` (simulation); the website uses Jost and Source Serif 4 (OFL, self-hosted in `web/fonts/`) and no JavaScript framework.
 
 **AI disclosure.** Claude Code (Anthropic's CLI agent) wrote essentially all the code, tests, scripts, web page and this README under direction from the project owner, who reviewed each phase and specified the design (the shares/index maths, security requirements and the DAO governor). The deployment commands were run by the owner; the AI did not deploy, push or submit anything. Nothing here is audited, so review before trusting it.
 

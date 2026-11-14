@@ -1,0 +1,299 @@
+/* Wörgl: printed municipal paper. One carmine (melt only), one meadow green (treasury only). */
+@font-face{font-family:"Jost";src:url(/fonts/Jost-normal.woff2) format("woff2");font-weight:400 700;font-style:normal;font-display:swap}
+@font-face{font-family:"Source Serif 4";src:url(/fonts/SourceSerif4-normal.woff2) format("woff2");font-weight:400 700;font-style:normal;font-display:swap}
+@font-face{font-family:"Source Serif 4";src:url(/fonts/SourceSerif4-italic.woff2) format("woff2");font-weight:400 700;font-style:italic;font-display:swap}
+
+:root{
+  --paper:#E3E8DA;      /* security paper */
+  --note:#D3DCC8;       /* the banknote, a little deeper */
+  --ink:#16202C;        /* printing ink */
+  --ink-faded:#4B5967;  /* secondary text */
+  --melt:#B0243A;       /* stamp carmine: the melt, nothing else */
+  --meadow:#2F6A35;     /* meadow green: the treasury, nothing else */
+  --rule:#16202C;
+  --sans:"Jost","Futura","Century Gothic","Avenir Next",system-ui,sans-serif;
+  --serif:"Source Serif 4","Iowan Old Style","Palatino Linotype",Georgia,serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 1.125rem/1.6 var(--serif);font-optical-sizing:auto}
+.page{max-width:70rem;margin:0 auto;padding:0 1rem 5rem}
+@media (min-width:48rem){.page{padding:0 2rem 6rem}}
+
+h1,h2,h3{font-family:var(--sans);font-weight:600;line-height:1.15;margin:0;letter-spacing:.005em}
+h2{font-size:clamp(1.7rem,3.2vw,2.3rem);margin-bottom:1.1rem}
+h3{font-size:1.2rem;font-weight:500;margin:2rem 0 .5rem}
+p{margin:0 0 1rem}
+a{color:var(--ink);text-decoration-thickness:1px;text-underline-offset:.18em}
+a:hover{text-decoration-thickness:2px}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.section{margin-top:clamp(4.5rem,10vw,8rem)}
+.prose{max-width:64ch}
+.faded{color:var(--ink-faded)}
+.num{font-variant-numeric:tabular-nums lining-nums;font-feature-settings:"tnum" 1,"lnum" 1}
+.melt{color:var(--melt)}
+.treasury{color:var(--meadow)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- header ---------- */
+#account{color:var(--ink-faded);font-size:1rem;overflow-wrap:anywhere}
+
+/* ---------- buttons and fields ---------- */
+button,.button{font:500 1rem/1.2 var(--sans);color:var(--ink);background:transparent;border:2px solid var(--ink);border-radius:0;padding:.6rem 1rem;cursor:pointer;min-height:2.75rem}
+button:hover:not(:disabled){background:var(--ink);color:var(--paper)}
+button.solid{background:var(--ink);color:var(--paper)}
+button.solid:hover:not(:disabled){background:var(--paper);color:var(--ink)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+input,select{font:400 1.05rem/1.3 var(--serif);color:var(--ink);background:var(--note);border:2px solid var(--ink);border-radius:0;padding:.55rem .7rem;min-height:2.75rem;max-width:100%}
+input::placeholder{color:var(--ink-faded)}
+label{font:500 .95rem/1.3 var(--sans);display:block;margin-bottom:.25rem}
+.field{margin:0 0 1rem}
+.row{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+.status{min-height:1.6em;margin:.5rem 0 0;font-size:1rem}
+.status.err{color:var(--ink);border-left:4px solid var(--melt);padding-left:.6rem}
+
+/* ---------- the note ---------- */
+.note-wrap{margin-top:.5rem}
+#note{display:block;width:100%;height:auto;cursor:ew-resize;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+#note text{font-family:var(--serif);fill:var(--ink)}
+#note .sans{font-family:var(--sans)}
+#note .value{font-size:92px;font-weight:600;font-variant-numeric:tabular-nums lining-nums}
+#note .melted{fill:var(--melt)}
+#note .received{fill:var(--meadow)}
+#note .faded{fill:var(--ink-faded)}
+#note .stamp-box{fill:none;stroke:var(--ink-faded);stroke-width:1.5;stroke-dasharray:3 3}
+#note .stamp-mark{display:none}
+#note .stamp.filled .stamp-mark{display:inline}
+#note .stamp-mark circle{fill:none;stroke:var(--melt);stroke-width:3}
+#note .stamp-mark text{fill:var(--melt);font-family:var(--sans);font-weight:600;font-size:15px;text-anchor:middle}
+#note .guilloche{fill:none;stroke:var(--ink);stroke-width:.7;opacity:.4}
+.note-sentence{margin:1rem 0 .25rem;max-width:64ch}
+.time-controls{margin-top:1.25rem;display:grid;gap:.9rem}
+.time-controls .group{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+.time-controls .group>span.label{font:500 .95rem var(--sans);margin-right:.4rem;min-width:7.5rem}
+input[type=range]{width:100%;min-height:2.75rem;padding:0;background:transparent;border:0;accent-color:var(--ink)}
+.readout{font-size:1.1rem;min-height:3.2em;max-width:64ch}
+.hint{color:var(--ink-faded);font-size:.95rem;margin:0}
+
+/* ---------- story ---------- */
+.timeline{list-style:none;margin:1.5rem 0 1rem;padding:0;max-width:64ch}
+.timeline li{display:grid;grid-template-columns:9.5rem 1fr;gap:.25rem 1.25rem;padding:.9rem 0;border-top:1px solid var(--ink)}
+.timeline li:last-child{border-bottom:1px solid var(--ink)}
+.timeline time{font:500 1rem/1.5 var(--sans)}
+.timeline p{margin:0}
+@media (max-width:34rem){.timeline li{grid-template-columns:1fr}}
+.callout{font:500 1.25rem/1.4 var(--sans);max-width:36rem;margin:1.5rem 0}
+
+/* ---------- loop + rules ---------- */
+.figure{margin:1.5rem 0}
+#loop{display:block;width:100%;max-width:30rem;height:auto}
+#loop text{font-family:var(--serif);font-size:17px;fill:var(--ink)}
+#loop .node{font-family:var(--sans);font-weight:600;font-size:21px}
+#loop .p-treasury{stroke:var(--meadow);fill:none;stroke-width:3}
+#loop .p-melt{stroke:var(--melt);fill:none;stroke-width:3}
+#loop .p-trade{stroke:var(--ink);fill:none;stroke-width:3}
+.rules{margin:1.5rem 0;max-width:46rem}
+.ledger{margin:1rem 0;padding:0;max-width:46rem}
+.ledger .line{display:flex;flex-wrap:wrap;align-items:baseline;gap:.1rem .75rem;padding:.55rem 0;border-bottom:1px dotted var(--ink-faded)}
+.ledger dt{font:500 1rem var(--sans);flex:1 1 11rem}
+.ledger dd{margin:0}
+.ledger dd.figure-cell{font-size:1.35rem;font-variant-numeric:tabular-nums lining-nums;text-align:right;flex:0 1 auto;margin-left:auto;overflow-wrap:anywhere}
+.ledger dd.gloss{flex:1 1 100%;color:var(--ink-faded);font-size:.95rem;margin-top:-.2rem}
+
+/* ---------- live town ---------- */
+.town-grid{display:grid;gap:2.5rem 3rem;margin-top:1.5rem;grid-template-columns:minmax(0,1fr)}
+.town-grid>*{min-width:0}
+@media (min-width:60rem){.town-grid{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);align-items:start}}
+.big-balance{font-size:2.6rem;line-height:1.1;font-variant-numeric:tabular-nums lining-nums;margin:.2rem 0 .3rem;overflow-wrap:anywhere}
+.log{list-style:none;margin:.5rem 0 1rem;padding:0;max-height:22rem;overflow:auto}
+.log li{padding:.5rem 0;border-top:1px dotted var(--ink-faded);font-size:1rem;overflow-wrap:anywhere}
+.log li:first-child{border-top:0}
+.log time{color:var(--ink-faded);display:block;font:400 .85rem var(--sans)}
+.notice{border-left:4px solid var(--ink);padding:.2rem 0 .2rem 1rem;max-width:64ch}
+
+/* ---------- maths ---------- */
+.formula{font:600 1.25rem/1.4 var(--sans);margin:1rem 0}
+.check{max-width:46rem}
+.check .line .figure-cell{font-size:1.05rem}
+.check-controls{margin:1rem 0}
+.calc{display:grid;gap:.8rem;max-width:34rem;margin:1rem 0}
+.calc .row>*{flex:0 1 auto}
+.chart{max-width:52rem;margin:1.5rem 0}
+.chart img{display:block;width:100%;height:auto;border:1px solid var(--ink)}
+.chart img[hidden]{display:none}
+.chart figcaption{max-width:64ch;font-size:1rem;margin-top:.6rem;color:var(--ink-faded)}
+ul.plain{margin:0 0 1rem;padding-left:1.25rem;max-width:64ch}
+ul.plain li{margin:.5rem 0}
+
+/* ---------- footer ---------- */
+footer{margin-top:clamp(4.5rem,10vw,8rem);font-size:1rem}
+footer dl{display:grid;grid-template-columns:max-content 1fr;gap:.35rem 1.5rem;margin:1rem 0;max-width:52rem}
+footer dt{font:500 .95rem var(--sans)}
+footer dd{margin:0;overflow-wrap:anywhere}
+@media (max-width:34rem){footer dl{grid-template-columns:1fr}footer dd{margin-bottom:.5rem}}
+
+/* ---------- simulation chart (drawn by chart.js) ---------- */
+.plot{display:block;width:100%;height:auto;max-width:44rem}
+.plot .grid{stroke:var(--ink-faded);stroke-width:.6;stroke-dasharray:2 4}
+.plot .tick{font:400 12px var(--serif);fill:var(--ink-faded);font-variant-numeric:tabular-nums lining-nums}
+.plot .series{fill:none;stroke-width:2.5;stroke-linejoin:round}
+.plot .end{font:500 14px var(--sans)}
+.s-treasury.series{stroke:var(--meadow)} .s-ink.series{stroke:var(--ink)} .s-melt.series{stroke:var(--melt)} .s-total.series{stroke:var(--ink-faded);stroke-width:1.5;stroke-dasharray:6 5}
+.plot .end.s-treasury{fill:var(--meadow)} .plot .end.s-ink{fill:var(--ink)} .plot .end.s-melt{fill:var(--melt)}
+.panels{display:grid;gap:1.25rem 1.5rem;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));max-width:52rem}
+.panel-title{font:500 .95rem var(--sans);margin:0 0 .2rem}
+.legend{margin:.2rem 0 1rem;font-size:1rem}
+.legend .key{display:inline-block;white-space:nowrap;margin-right:1.2rem}
+.legend .sw{display:inline-block;width:1.6rem;height:0;border-top:3px solid;vertical-align:middle;margin-right:.5rem}
+.legend .sw.s-ink{border-color:var(--ink)} .legend .sw.s-total{border-top-style:dashed;border-color:var(--ink-faded)}
+.legend .sw.s-melt{border-color:var(--melt)} .legend .sw.s-treasury{border-color:var(--meadow)}
+.chart h3:first-of-type{margin-top:0}
+
+/* range slider: a printed scale with a square stop */
+input[type=range]{-webkit-appearance:none;appearance:none;height:2.75rem;cursor:ew-resize}
+input[type=range]::-webkit-slider-runnable-track{height:4px;background:var(--ink)}
+input[type=range]::-moz-range-track{height:4px;background:var(--ink)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;margin-top:-9px;background:var(--paper);border:3px solid var(--ink);border-radius:0}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--paper);border:3px solid var(--ink);border-radius:0}
+
+/* empty states take no room */
+#data-status:empty{display:none}
+.big-balance:empty{display:none}
+input{width:100%;max-width:26rem}
+#amount{max-width:12rem}
+#to{max-width:26rem}
+.calc input{width:auto}
+#who-input{width:100%;max-width:22rem}
+
+.plot .tick{font-size:12px}
+@media (max-width:40rem){.plot .tick{font-size:15px}.formula{font-size:1.05rem}}
+
+/* ---------- sticky top bar ---------- */
+html{scroll-behavior:smooth;scroll-padding-top:5.5rem}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+.topbar{position:sticky;top:0;z-index:20;background:var(--paper);border-bottom:1px solid var(--ink)}
+.topbar-inner{max-width:70rem;margin:0 auto;padding:.6rem 1rem;display:flex;flex-wrap:wrap;gap:.4rem 1.25rem;align-items:center}
+@media (min-width:48rem){.topbar-inner{padding:.7rem 2rem}}
+.wordmark{font:600 1.5rem/1 var(--sans);text-decoration:none;color:var(--ink)}
+.topbar nav{order:3;flex:1 1 100%;overflow-x:auto}
+@media (min-width:62rem){.topbar nav{order:0;flex:1 1 auto}}
+#nav{list-style:none;margin:0;padding:0;display:flex;gap:1.1rem;white-space:nowrap}
+#nav a{font:500 1rem var(--sans);text-decoration:none;padding:.35rem 0;border-bottom:3px solid transparent;display:inline-block}
+#nav a:hover{border-bottom-color:var(--ink-faded)}
+#nav a[aria-current="page"]{border-bottom-color:var(--ink)}
+.topbar .right{display:flex;gap:.6rem;align-items:center;margin-left:auto}
+#account{color:var(--ink-faded);font-size:.95rem;overflow-wrap:anywhere;max-width:14rem}
+@media (max-width:30rem){#account{display:none}}
+
+/* ---------- hero ---------- */
+.hero{padding-top:clamp(2rem,6vw,4rem)}
+.hero h1{font-size:clamp(2.6rem,7vw,4.8rem);line-height:1.02;letter-spacing:-.01em;margin:0 0 .6rem}
+.lede{font:500 clamp(1.35rem,3vw,1.9rem)/1.3 var(--sans);margin:0 0 1rem}
+.hero-actions{margin:1.2rem 0 2rem}
+.button{display:inline-flex;align-items:center;text-decoration:none;color:var(--ink);border:2px solid var(--ink);padding:.6rem 1.1rem;min-height:2.75rem;font:500 1rem/1.2 var(--sans)}
+.button.solid{background:var(--ink);color:var(--paper)}
+.button:hover{background:var(--ink);color:var(--paper)}
+.button.solid:hover{background:var(--paper);color:var(--ink)}
+.why{margin-top:1.25rem}
+
+/* ---------- the loop beside its three sentences ---------- */
+.loop-row{display:grid;gap:1.5rem 3rem;grid-template-columns:minmax(0,1fr);align-items:center;margin:1rem 0 .5rem}
+@media (min-width:56rem){.loop-row{grid-template-columns:minmax(0,26rem) minmax(0,1fr)}}
+.loop-row .figure{margin:0}
+.plain-steps{margin:0;padding-left:1.4rem;max-width:36rem}
+.plain-steps li{margin:.7rem 0}
+
+/* ---------- try it: a real sequence, so the steps are numbered ---------- */
+.mode{margin:1.25rem 0 .4rem}
+.steps{list-style:none;margin:1.5rem 0;padding:0;max-width:44rem}
+.step{display:grid;grid-template-columns:3rem minmax(0,1fr);gap:0 1rem;padding:1.1rem 0;border-top:1px solid var(--ink)}
+.step:last-child{border-bottom:1px solid var(--ink)}
+.step .n{width:2.6rem;height:2.6rem;border:2px solid var(--ink);display:grid;place-items:center;font:600 1.2rem var(--sans)}
+.step.done .n{background:var(--ink);color:var(--paper)}
+.step h3{margin:.1rem 0 .3rem}
+.step p{margin:0 0 .6rem}
+#try[data-mode="sim"] .only-real,#try[data-mode="real"] .only-sim{display:none !important}
+.result{max-width:44rem}
+.result .figure-cell{font-size:1.6rem}
+
+/* ---------- numbers ---------- */
+.shelf{border-collapse:collapse;width:100%;max-width:40rem;margin:.5rem 0 1rem;font-variant-numeric:tabular-nums lining-nums}
+.shelf th,.shelf td{text-align:right;padding:.55rem .5rem;border-bottom:1px dotted var(--ink-faded)}
+.shelf th:first-child,.shelf td:first-child{text-align:left;font-family:var(--sans);font-weight:500}
+.shelf thead th{font:500 .95rem var(--sans);border-bottom:1px solid var(--ink)}
+.shelf td.melt{color:var(--melt)}
+.ledger dd.gloss:only-of-type{color:var(--ink);font-size:1.05rem;margin-top:0}
+.ledger .line>dd.gloss:nth-child(2){flex:1 1 20rem;color:var(--ink);font-size:1.05rem;margin:0}
+
+/* ---------- details: FAQ and the proof ---------- */
+.faq{max-width:46rem;border-bottom:1px solid var(--ink)}
+.faq details,.proof{border-top:1px solid var(--ink);padding:.9rem 0}
+.faq summary,.proof summary{cursor:pointer;font:500 1.15rem var(--sans);padding:.2rem 0}
+.faq details p{margin:.6rem 0 .2rem;max-width:64ch}
+.proof{max-width:52rem;margin-top:2rem;border-bottom:1px solid var(--ink)}
+.proof[open] summary{margin-bottom:.8rem}
+
+/* ---------- hero, tightened so the note is on the first screen ---------- */
+.hero{padding-top:clamp(1.2rem,3.5vw,2.2rem)}
+.hero h1{font-size:clamp(2.4rem,5.8vw,4.2rem)}
+.hero .lede{margin-bottom:.6rem}
+.hero .prose{margin-bottom:.8rem}
+.hero-actions{margin:.8rem 0 1.4rem}
+.caption{margin:0 0 .6rem;max-width:64ch}
+.why{margin-top:1rem}
+
+/* ---------- try it: steps on the left, the result stays in view on the right ---------- */
+.try-grid{display:grid;gap:1.5rem 3rem;grid-template-columns:minmax(0,1fr);align-items:start}
+@media (min-width:62rem){
+  .try-grid{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+  .result-panel{position:sticky;top:6rem}
+}
+.result-panel{border-top:3px solid var(--ink);padding-top:.4rem;max-width:32rem}
+.result-panel h3{margin-top:.5rem}
+.result-panel .figure-cell{font-size:1.9rem;line-height:1.2}
+.steps{max-width:none;margin-top:1.5rem}
+
+/* small screens: keep all five nav links in reach, and let legends wrap */
+@media (max-width:30rem){
+  #nav{gap:.85rem}
+  #nav a{font-size:.92rem}
+  .topbar-inner{padding:.45rem 1rem}
+}
+@media (max-width:24rem){.legend .key{white-space:normal}}
+
+/* ---------- multi-page: page titles, home list, next links ---------- */
+.lead-section{margin-top:clamp(1.5rem,4vw,3rem)}
+.page-title{font-size:clamp(2rem,5vw,3.2rem);line-height:1.08;margin:0 0 1.2rem}
+.explore{list-style:none;margin:1rem 0 0;padding:0;max-width:46rem;border-bottom:1px solid var(--ink)}
+.explore li{display:grid;grid-template-columns:10rem minmax(0,1fr);gap:.2rem 1.25rem;padding:1rem 0;border-top:1px solid var(--ink)}
+.explore a{font:600 1.3rem/1.2 var(--sans)}
+.explore span{max-width:36rem}
+@media (max-width:34rem){.explore li{grid-template-columns:1fr}}
+.next{margin:4rem 0 0;display:flex;flex-wrap:wrap;gap:.6rem 1rem;align-items:center}
+
+/* ---------- hackathon + testnet, always visible ---------- */
+.testnet-banner{background:var(--ink);color:var(--paper);font:400 .95rem/1.4 var(--sans);text-align:center;padding:.45rem 1rem}
+.testnet-banner b{font-weight:600}
+.badge{font:600 .8rem/1 var(--sans);border:2px solid var(--ink);padding:.28rem .45rem;margin-left:-.5rem;letter-spacing:.02em}
+.hackathon{font:500 1.05rem/1.4 var(--sans);border-left:4px solid var(--ink);padding:.15rem 0 .15rem .8rem;margin:.2rem 0 .9rem;max-width:40rem}
+@media (max-width:30rem){.badge{display:none}}
+
+@media (max-width:30rem){.testnet-banner{font-size:.85rem;padding:.35rem .8rem}}
+
+.chart-explain{max-width:64ch;margin:0 0 .8rem}
+.chart-explain .melt{color:var(--melt)}
+
+/* the note's melt bar */
+#note .meter-left{fill:var(--ink)}
+#note .meter-melted{fill:var(--melt)}
+#note .meter-frame{fill:none;stroke:var(--ink);stroke-width:2}
+
+/* plain-words section */
+.plain-steps.big{max-width:46rem;font-size:1.2rem;padding-left:1.6rem}
+.plain-steps.big li{margin:1rem 0}
+.terms{display:grid;gap:.6rem 2rem;margin:.5rem 0 0;max-width:46rem}
+.terms div{display:grid;grid-template-columns:6rem minmax(0,1fr);gap:.2rem 1rem;padding:.7rem 0;border-top:1px dotted var(--ink-faded)}
+.terms dt{font:600 1.05rem var(--sans)}
+.terms dd{margin:0}
+@media (max-width:34rem){.terms div{grid-template-columns:1fr}}

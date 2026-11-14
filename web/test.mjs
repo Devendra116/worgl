@@ -3,7 +3,9 @@
 //   node web/test.mjs                       # offline
 //   TOKEN=<token>.testnet node web/test.mjs # + live check
 import { readFileSync } from "node:fs";
-import { rpow, balanceOfShares, circulatingOf, indexAt, formatCoins, Chain, ONE } from "./worgl.js";
+import { createSim } from "./src/scripts/sim-demo.js";
+import { friendly, outcomeError, maxSendable, checkSend } from "./src/scripts/wallet-logic.js";
+import { rpow, balanceOfShares, circulatingOf, indexAt, formatCoins, Chain, ONE } from "./src/scripts/worgl.js";
 const v = JSON.parse(readFileSync(new URL("../contract/tests/vectors.json", import.meta.url)));
 let bad = 0;
 const check = (name, ok) => { console.log((ok ? "PASS  " : "FAIL  ") + name); bad += !ok; };
@@ -20,6 +22,48 @@ for (const o of v.ops) {
 check(`balance/circulating match ${v.ops.length} contract vectors`, ok);
 check("formatCoins truncates", formatCoins(1234567n * ONE + 5n * 10n ** 13n) === "1,234,567.0000" && formatCoins(100n * ONE) === "100.0000");
 check("elapsed time saturates before start", indexAt(999983249580534007019381142n, 10n ** 18n, 5n) === 10n ** 27n);
+
+// ---- wallet logic (no wallet needed)
+check("friendly: already claimed", friendly(new Error("Smart contract panicked: Already claimed")).startsWith("You have already claimed"));
+check("friendly: cap", friendly("Smart contract panicked: Daily payout cap exceeded").includes("00:00 UTC"));
+check("friendly: cancelled wallet", friendly(new Error("User rejected the request")).includes("cancelled"));
+check("friendly: unknown error is still a sentence with a next step", /^The transaction failed: weird thing\. Check the wallet/.test(friendly("Smart contract panicked: weird thing")));
+check("outcomeError finds a failed receipt", outcomeError({ receipts_outcome: [{ outcome: { status: { SuccessValue: "" } } }, { outcome: { status: { Failure: { ActionError: "x" } } } }] }) !== null);
+check("outcomeError is null on success", outcomeError({ receipts_outcome: [{ outcome: { status: { SuccessValue: "" } } }], status: { SuccessValue: "" } }) === null);
+{
+  const F = 999983249580534007019381142n, start = 10n ** 18n;
+  const now = start + 1000n * 1_000_000_000n, shares = 100n * ONE;
+  const nowBal = balanceOfShares(shares, indexAt(F, start, now));
+  const max = maxSendable({ shares, factor: F, startNs: start, nowNs: now, leadSecs: 120n });
+  check("Max is below the balance now and above the balance 121 s later", max < nowBal && max >= balanceOfShares(shares, indexAt(F, start, now + 121n * 1_000_000_000n)) - 1n);
+  const later = balanceOfShares(shares, indexAt(F, start, now + 90n * 1_000_000_000n));
+  check("Max is still affordable if the transaction lands 90 s later", max <= later);
+  check("send form: bad account", checkSend({ me: "a.testnet", toText: "A B", amountText: "1", balance: 10n * ONE }).error.includes("account"));
+  check("send form: to self", checkSend({ me: "a.testnet", toText: "a.testnet", amountText: "1", balance: 10n * ONE }).error.includes("yourself"));
+  check("send form: zero", checkSend({ me: "a.testnet", toText: "b.testnet", amountText: "0", balance: 10n * ONE }).error.includes("above zero"));
+  check("send form: too much", checkSend({ me: "a.testnet", toText: "b.testnet", amountText: "11", balance: 10n * ONE }).error.includes("more than you hold"));
+  const ok = checkSend({ me: "a.testnet", toText: " B.testnet ", amountText: "2.5", balance: 10n * ONE });
+  check("send form: valid input is normalised", ok.to === "b.testnet" && ok.amount === 25n * ONE / 10n);
+}
+
+// ---- the no-wallet simulation (same rounding rules as the contract)
+{
+  const F = 999983249580534007019381142n, SUPPLY = 1_000_000n * ONE;
+  const s = createSim(F);
+  s.join(); s.claim();
+  check("sim: claim gives 100 coins", s.balance("You") === 100n * ONE);
+  let again = false; try { s.claim(); } catch { again = true; }
+  check("sim: a second claim is refused", again);
+  s.send(10n * ONE);
+  check("sim: send moves 10 coins to Sam", s.balance("Sam") === 10n * ONE && s.balance("You") === 90n * ONE);
+  check("sim: pot + circulating is exactly the supply", s.pot() + s.circulating() === SUPPLY);
+  s.skip(86_400);
+  check("sim: a day of skipping melts to ~23.5%", s.balance("You") < 22n * ONE && s.balance("You") > 20n * ONE);
+  check("sim: supply still conserved after melting", s.pot() + s.circulating() === SUPPLY);
+  check("sim: the melt from You is positive and below what came in", s.meltedFromYou() > 0n && s.meltedFromYou() < 100n * ONE);
+  let over = false; try { s.send(500n * ONE); } catch { over = true; }
+  check("sim: sending more than you hold is refused", over);
+}
 
 if (process.env.TOKEN) {
   const c = new Chain(process.env.RPC ?? "https://rpc.testnet.fastnear.com", process.env.TOKEN);

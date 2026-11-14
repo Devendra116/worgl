@@ -1,0 +1,81 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="Wörgl: money with a shelf life, a hackathon project on NEAR testnet" description="A hackathon project on NEAR testnet. Wörgl coins melt on a fixed schedule and the melt goes to a pot the community spends. Spend it, or it flows back to the town." active="/">
+<!-- HERO -->
+<section class="hero" aria-labelledby="hero-title">
+  <h1 id="hero-title">Money with a shelf life.</h1>
+  <p class="lede">Spend it, or it flows back to the town.</p>
+  <p class="prose"><b>A hackathon project, live on NEAR testnet.</b> Wörgl's coins melt on a fixed schedule, and the melt goes into a pot the community spends. The coins have no value.</p>
+  <p class="row hero-actions">
+    <a class="button solid" href="/try">Try it in 60 seconds</a>
+    <a class="button" href="/idea">How it works</a>
+  </p>
+
+  <p class="caption"><b>Watch the number on this note fall.</b> It started at 100 coins when you opened the page, and it is melting.</p>
+  <div class="note-wrap">
+    <svg id="note" viewBox="0 0 960 420" role="img" aria-label="A sample Wörgl note. Its value counts down in real time, and a bar shows how much has melted into the town pot. Drag it sideways to move through time."></svg>
+  </div>
+  <div class="why prose">
+    <p><b>Nothing is broken.</b> In this demo a note loses 1% every 10 minutes. The lost coins are not burned: they land in the <span class="treasury">town pot</span>, the green number, where the community can spend them again.</p>
+  </div>
+
+  <div class="time-controls">
+    <div class="group" id="note-rate" role="group" aria-label="Melt rate">
+      <span class="label">Melt rate</span>
+      <button type="button" data-rate="demo" aria-pressed="true">This demo: 1% per 10 minutes</button>
+      <button type="button" data-rate="real" aria-pressed="false">Real setting: 1% per 30 days</button>
+    </div>
+    <div class="group">
+      <span class="label">Skip ahead</span>
+      <span id="note-presets" class="row"></span>
+    </div>
+    <div>
+      <label for="note-slider">Move the note through time</label>
+      <input id="note-slider" type="range" min="0" max="1000" step="1" value="0">
+      <p class="hint">You can also drag the note sideways.</p>
+    </div>
+    <p id="note-readout" class="readout"></p>
+  </div>
+</section>
+
+
+<!-- IN PLAIN WORDS -->
+<section class="section" aria-labelledby="plain-title">
+  <h2 id="plain-title">In plain words</h2>
+  <ol class="plain-steps big">
+    <li><b>There is one pot of 1,000,000 coins.</b> We call it the town pot. At the start, all the coins are in it.</li>
+    <li><b>Coins you hold slowly shrink.</b> Every balance loses 1% on a fixed schedule: 1% a month in real life, 1% every 10 minutes in this demo so you can watch it happen.</li>
+    <li><b>What you lose is not burned.</b> It goes back into the pot, and a group vote can pay it out to people again. Spend your coins, and they keep going round.</li>
+  </ol>
+  <h3>Three words you will see</h3>
+  <dl class="terms">
+    <div><dt>NEAR</dt><dd>A blockchain: a shared record that no single company controls.</dd></div>
+    <div><dt>Testnet</dt><dd>A practice version of NEAR where nothing costs or is worth real money. This project lives there.</dd></div>
+    <div><dt>DAO</dt><dd>A group that makes decisions by voting on a blockchain. Here, three people vote on who gets paid from the pot, and two must agree.</dd></div>
+  </dl>
+</section>
+
+<!-- EXPLORE -->
+<section class="section" aria-labelledby="explore-title">
+  <h2 id="explore-title">Where to next</h2>
+  <ul class="explore">
+    <li><a href="/idea">The idea</a><span>A mayor, a town and a 1% stamp in 1932, and the same loop on NEAR.</span></li>
+    <li><a href="/try">Try it</a><span>Four steps, with a simulated account or your own testnet wallet.</span></li>
+    <li><a href="/numbers">The numbers</a><span>1,000,000 coins, who controls them, and live figures from the contract.</span></li>
+    <li><a href="/maths">The maths</a><span>A calculator, a chart, and the proof for people who check.</span></li>
+    <li><a href="/faq">Questions</a><span>Is it a memecoin? Can it be cheated? What it doesn't do.</span></li>
+  </ul>
+</section>
+
+<section class="section" aria-labelledby="live-title">
+  <h2 id="live-title">Live on NEAR testnet right now</h2>
+  <p id="data-status" class="status" role="status"></p>
+  <dl class="ledger" aria-label="Live figures from the contract">
+    <div class="line"><dt>The town pot</dt><dd class="figure-cell treasury" id="v-treasury">–</dd><dd class="gloss">Everything that has melted, plus what nobody has claimed yet.</dd></div>
+    <div class="line"><dt>In people's hands</dt><dd class="figure-cell" id="v-circ">–</dd><dd class="gloss">Held by accounts, and melting. The pot plus this is always exactly 1,000,000.</dd></div>
+  </dl>
+  <p><a href="/numbers">See all the live figures and recent activity</a></p>
+</section>
+
+</Base>

@@ -1,0 +1,39 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="The idea · Wörgl" description="A mayor, a town and a 1% stamp in 1932, and the same loop on NEAR testnet." active="/idea">
+<!-- THE IDEA: story + loop -->
+<section class="section lead-section" id="idea" aria-labelledby="idea-title">
+  <h1 id="idea-title" class="page-title">The idea is 90 years old</h1>
+  <div class="prose">
+    <p>Wörgl, in Austria, had about 4,200 residents during the Great Depression. In the summer of 1932 its mayor tried something new: local notes that lose value unless a stamp is bought.</p>
+  </div>
+  <ol class="timeline">
+    <li><time datetime="1932-07-31">31 July 1932</time><p>Mayor Michael Unterguggenberger issues local notes. Each one loses 1% of its value every month unless its holder buys a stamp.</p></li>
+    <li><time datetime="1933-06">June 1933</time><p>Mayors from about 170 towns attend a briefing in Vienna.</p></li>
+    <li><time datetime="1933-09-01">1 September 1933</time><p>The central bank and the courts end it, because only the national bank was allowed to issue money.</p></li>
+  </ol>
+  <div class="prose">
+    <p>Holding a note cost money, so people spent it. The stamp fees, and taxes that were paid sooner, helped the town pay for public works. The notes were backed by ordinary schillings held on deposit, and the works were also funded by subsidies and a provincial grant.</p>
+    <p>The experiment was banned, not disproven. The evidence is also thin: one small town for thirteen months.</p>
+  </div>
+
+  <h3>The same idea, on NEAR</h3>
+  <p class="prose">There are no stamps here. In 1932 holders bought a stamp each month. On NEAR the loss happens by itself, every second, and the contract does the sums.</p>
+  <div class="loop-row">
+    <figure class="figure">
+      <svg id="loop" viewBox="0 0 480 430" role="img" aria-label="A loop. The town pot pays people through faucet claims and DAO payouts. People trade with each other. Everything melts back to the town pot."></svg>
+    </figure>
+    <ol class="plain-steps">
+      <li><b>The town pot pays people.</b> In a real DAO, payouts the council approves do this. This testnet demo also has a test faucet that gives each account 100 coins, so anyone can try it.</li>
+      <li><b>People spend and trade.</b> Coins change hands like any token. Holding them costs you, so there is a reason to use them.</li>
+      <li><b>Everything melts back.</b> Every balance loses 1% on a fixed schedule, and the loss returns to the pot. Then it starts again.</li>
+    </ol>
+  </div>
+  <p class="callout">The DAO decides who gets paid; the contract decides how much can be paid.</p>
+</section>
+
+
+<p class="next">Seen enough? See it work. <a class="button solid" href="/try">Next: try it</a></p>
+
+</Base>

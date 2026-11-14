@@ -1,0 +1,50 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="The numbers · Wörgl" description="1,000,000 coins, who controls them, and live figures read from the contract on NEAR testnet." active="/numbers">
+<!-- THE NUMBERS -->
+<section class="section lead-section" id="numbers" aria-labelledby="numbers-title">
+  <h1 id="numbers-title" class="page-title">The numbers</h1>
+  <div class="prose">
+    <p><b>1,000,000 coins exist. Ever.</b> Nobody can mint more, and nobody can change the rules below once the contract starts.</p>
+  </div>
+  <dl class="ledger">
+    <div class="line"><dt>Where coins start</dt><dd class="gloss">All 1,000,000 begin in the town pot.</dd></div>
+    <div class="line"><dt>How they get out</dt><dd class="gloss">Through payouts the DAO council approves, up to 10% of the pot per day. For testing on testnet there is also a one-time faucet (100 coins per account) that counts against the same cap. A real DAO would not have one.</dd></div>
+    <div class="line"><dt>How they come back</dt><dd class="gloss">Every balance melts on a fixed schedule: 1% a month in the real setting. What melts returns to the pot.</dd></div>
+    <div class="line"><dt>Who is in charge</dt><dd class="gloss">A DAO of three council members, two of whom must approve a payout. The contract sets the limits.</dd></div>
+  </dl>
+
+  <h3>What 100 coins become, at the real rate</h3>
+  <table class="shelf" id="shelf"><caption class="sr-only">A 100-coin note over time at the real melt rate</caption></table>
+
+  <h3>Live on the testnet token, right now</h3>
+  <p id="data-status" class="status" role="status"></p>
+  <dl class="ledger" aria-label="Live figures from the contract">
+    <div class="line"><dt>The town pot</dt><dd class="figure-cell treasury" id="v-treasury">–</dd><dd class="gloss">Everything that has melted, plus what nobody has claimed yet. It pays the faucet and the DAO's payouts. In the contract it is the treasury.</dd></div>
+    <div class="line"><dt>In people's hands</dt><dd class="figure-cell" id="v-circ">–</dd><dd class="gloss">Held by accounts, and melting. The pot plus this is always exactly 1,000,000.</dd></div>
+    <div class="line"><dt>Can still be paid out today</dt><dd class="figure-cell treasury" id="v-allow">–</dd><dd class="gloss" id="v-allow-note"></dd></div>
+    <div class="line"><dt>What 1 starting coin is worth</dt><dd class="figure-cell" id="v-index">–</dd><dd class="gloss">This falls every second. It is the one number the melt changes.</dd></div>
+  </dl>
+  <p class="notice" id="notice"></p>
+
+  <h3>The rules, read from the contract</h3>
+  <dl class="ledger rules" id="rules"><div class="line"><dt>Loading the rules</dt><dd class="figure-cell">…</dd></div></dl>
+
+  <div class="town-grid" style="margin-top:2.5rem">
+    <div>
+      <h3 style="margin-top:0">Recent activity</h3>
+      <ul class="log" id="activity"><li>Loading recent activity…</li></ul>
+    </div>
+    <div>
+      <h3 style="margin-top:0">DAO proposals</h3>
+      <ul class="log" id="proposals"><li>Loading proposals…</li></ul>
+      <p><a id="dao-link" href="#">Open the DAO on NearBlocks</a></p>
+    </div>
+  </div>
+</section>
+
+
+<p class="next">Want to check how the balance is worked out? <a class="button solid" href="/maths">Next: the maths</a></p>
+
+</Base>

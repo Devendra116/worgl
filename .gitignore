@@ -10,3 +10,5 @@ node_modules/
 .near-credentials/
 neardev/
 *seed*phrase*
+dist/
+.astro/
