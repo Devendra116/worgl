@@ -240,10 +240,10 @@ assets/            Logo and screenshots used by this README
 |---|---|---|
 | Rust unit and property tests | Maths, claims, transfers, payouts, daily limit, index-zero behaviour, JSON interface | 32 |
 | Fuzz tests | Random operations and time jumps, invariants checked throughout | 2 × 100,000 steps |
-| Sandbox tests (local NEAR node) | Token flow, governor-only payouts, an example Sputnik DAO governing `pay_out` | 2 (+1 slow) |
+| Sandbox tests (local NEAR node) | Token flow, governor-only payouts, registering a new recipient and paying them in one transaction, an example Sputnik DAO governing `pay_out` | 3 (+1 slow) |
 | Slow sandbox test | The daily limit holds and resets across a UTC midnight | about 22 minutes, `scripts/test.sh --slow` |
 | Web checks | JavaScript maths, amount and timestamp handling, the simulation, wallet-error wording | 40 |
-| Wallet flow in a browser | A fake wallet connects, and the Claim button, its deposit and its messages are checked in headless Chrome: `npm run test:ui` (optional; needs Chrome and `npm run build`) | 5 (6 with `CLAIMED_ACCOUNT=<account>`) |
+| Wallet flow in a browser | A fake wallet connects, and the Claim button, its deposit and its messages are checked in headless Chrome: `npm run test:ui` (optional; needs Chrome and `npm run build`) | 5 (11 with `CLAIMED_ACCOUNT=<account>`) |
 | On-chain verifier | Recomputes a deployed token's numbers from raw chain state | `scripts/verify-testnet.sh` |
 
 The deployed wasm's code hash on testnet matches a fresh `scripts/build.sh` of this repository.
