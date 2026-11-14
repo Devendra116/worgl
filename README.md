@@ -15,7 +15,7 @@ and the melt funds a treasury that a DAO pays out again.
 
 [Token on NearBlocks](https://testnet.nearblocks.io/address/worgl-demo.testnet) ·
 [DAO on NearBlocks](https://testnet.nearblocks.io/address/devworgl-dao.sputnikv2.testnet) ·
-[Source](https://github.com/devendra116/worgl) ·
+[Source](https://github.com/Devendra116/worgl) ·
 [@devendra_116](https://x.com/devendra_116)
 
 <!-- Add the hosted website here once it is published: [Website](https://...) -->
