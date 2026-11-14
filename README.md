@@ -36,15 +36,15 @@ and the melt funds a treasury that a DAO pays out again.
 
 | | |
 |---|---|
-| **What it is** | A fixed-supply token on NEAR **testnet** whose balances lose a fixed percentage on a schedule. What melts goes to a treasury. A DAO decides who is paid from it. |
+| **What it is** | A **tokenomics proposal with a working reference implementation** on NEAR **testnet**: a fixed supply whose balances lose a fixed percentage on a schedule, with the melt flowing to a treasury that a governor pays out again under a hard daily limit. |
 | **Name / symbol** | Wörgl / `WORGL`, 18 decimals |
 | **Supply** | 1,000,000 coins. Fixed. Nothing is ever minted. |
 | **Melt rate** | Demo: **1% per hour** (so you can watch it). Intended real setting: **1% per month**. Chosen once at deployment, never changeable. |
 | **Token contract** | [`worgl-demo.testnet`](https://testnet.nearblocks.io/address/worgl-demo.testnet), Rust, `near-sdk` 5.30.1 |
-| **Governor** | [`devworgl-dao.sputnikv2.testnet`](https://testnet.nearblocks.io/address/devworgl-dao.sputnikv2.testnet): a Sputnik DAO v2 with a 3-member council where **2 approvals** pass a proposal. It can call exactly one method, `pay_out`. |
+| **Governor** | Any account chosen at deployment, normally a DAO of your choice with **any approval rule**. It can call exactly one method, `pay_out`. The demo deployment uses the Sputnik DAO [`devworgl-dao.sputnikv2.testnet`](https://testnet.nearblocks.io/address/devworgl-dao.sputnikv2.testnet) purely as an example; the token does not care how the governor decides. |
 | **Payout limit** | At most **10% of the treasury per UTC day**, enforced by the contract. |
 | **Standards** | NEP-141 core (`ft_transfer`, `ft_balance_of`, `ft_total_supply`), NEP-145 storage management, NEP-148 metadata. No `ft_transfer_call`, by design. |
-| **Verified by** | 32 Rust unit and property tests (two 100,000-step fuzz tests), sandbox tests on a local NEAR node, a Sputnik DAO governance test, 40 web checks, and a keyless on-chain verifier. |
+| **Verified by** | 32 Rust unit and property tests (two 100,000-step fuzz tests), sandbox tests on a local NEAR node (including an example Sputnik DAO governing `pay_out`), 40 web checks, and a keyless on-chain verifier. |
 | **Website** | A six-page [Astro](https://astro.build) static site in [`web/`](web/) with a live note, a no-wallet simulation, wallet claim and send, and in-browser checks. |
 | **Track** | NEAR HACKATHON, **memecoins**. Testnet only; the coins have no value. |
 
@@ -61,13 +61,22 @@ flowchart LR
     T[("Town pot<br/>the treasury")] -- "payouts<br/>(and a test faucet on testnet)" --> P(("People"))
     P -- "spend and trade" --> P
     P -- "melt: 1% on a fixed schedule" --> T
-    D["DAO council<br/>2 of 3 approve"] -. "pay_out, capped at 10% a day" .-> T
+    D["Governor<br/>any DAO, any approval rule"] -. "pay_out, capped at 10% a day" .-> T
 ```
 
 - **A fixed pot of 1,000,000 coins** starts in the treasury.
 - **Holding costs a little**, so coins are made to be used.
 - **What melts is not burned.** It returns to the treasury, which the DAO can pay out again.
-- **The DAO decides who gets paid. The contract decides how much can be paid.**
+- **The governor decides who gets paid. The contract decides how much can be paid.** The governor can be any DAO, with any approval rule.
+
+### The proposal in four rules
+
+1. **Fixed supply.** 1,000,000 coins exist from the start, all in the treasury. Nothing is ever minted.
+2. **One melt rate.** Every balance loses the same percentage on the same schedule. What melts returns to the treasury.
+3. **One way out.** The treasury pays out only through `pay_out`, which only the governor can call.
+4. **A hard daily limit.** Payouts are capped at 10% of the treasury per UTC day, whoever the governor is.
+
+Who the governor is, how it votes and what it funds are left to whoever deploys it. Any DAO, with any number of approvals, can work on top of this token.
 
 > *A budget that expires, not an investment.* Two natural uses: grant money that returns to the pot if unspent, and community or event credits that fade afterwards.
 
@@ -84,10 +93,6 @@ npm run dev
 ```
 
 Open <http://localhost:4321/>. You see a banknote whose value counts down in real time, the live pot and the coins in people's hands, and four checks that your browser recomputes from the contract. The **Try it** page walks through claim, send and skip-ahead, either as a simulation (no wallet) or with your own testnet wallet.
-
-<div align="center">
-<img src="assets/screenshot-try.png" width="760" alt="The Try it page: four numbered steps on the left and a result panel with balances on the right">
-</div>
 
 ### 2. Check the live token, no keys needed (needs Python 3)
 
@@ -162,7 +167,7 @@ treasury    = 1,000,000 coins − circulating              the contract's own ac
 | Test faucet | 100 WORGL, once per account | Testnet only. The caller pays a storage deposit of about 0.00126 NEAR; any excess is refunded. |
 | Transfers | exactly 1 yoctoNEAR attached | NEP-141 convention; keeps function-call keys out. |
 | Pay-out memo | at most 140 bytes | |
-| DAO policy | 3 council members, 2 approvals, 0.1 NEAR proposal bond, 7-day voting period | Set by [`scripts/create-dao.sh`](scripts/create-dao.sh); lives in the DAO, not in the token. |
+| Governor's own rules | Not part of the token | Any DAO or account can govern: any number of approvals, any voting period. The demo's example DAO ([`scripts/create-dao.sh`](scripts/create-dao.sh)) has 3 members, 2 approvals, a 0.1 NEAR proposal bond and a 7-day period. |
 
 **Nothing can change these.** The contract has no setter for the factor, the limit, the faucet or the governor.
 
@@ -176,7 +181,7 @@ treasury    = 1,000,000 coins − circulating              the contract's own ac
 |---|---|---|
 | **Any account** | Read everything. Claim the test faucet once. Send coins it owns (1 yoctoNEAR attached). Register and unregister for storage. | Mint, or touch anyone else's coins. |
 | **The governor** (the DAO) | Call `pay_out(recipient, amount, memo)` to a registered account, within the daily limit. | Change any parameter, move, freeze or burn anyone's coins, or mint. |
-| **The DAO council** (3 accounts) | Propose and approve payouts. Two approvals execute one. | Exceed the 10% daily limit; the contract enforces it whatever the vote says. |
+| **The governor's own process** (a DAO, any approval rule) | Decide who is paid and how much, however it votes. | Exceed the 10% daily limit: the contract enforces it whatever the governor decides. |
 | **Whoever holds the token account's key** | Replace the contract code while a full-access key exists. | Nothing, once the full-access keys are deleted. See [Limits](#limits-and-honest-notes). |
 
 The contract has **no admin, upgrade or mint method**, makes **no cross-contract calls** (only plain NEAR transfers for deposit refunds), and has one storage collection, so no prefix can collide.
@@ -212,10 +217,10 @@ contract/          The token contract (crate `worgl-token`)
   tests/vectors.json 409 shared test vectors generated by the Python reference
 sandbox-tests/     near-workspaces tests on a local NEAR node
   tests/worgl.rs     Token flow, governor rules, daily limit across UTC midnight (slow)
-  tests/dao.rs       A 3-member Sputnik DAO governs pay_out (2 approvals)
+  tests/dao.rs       An example Sputnik DAO (3 members, 2 approvals) governs pay_out
 scripts/           Everything you run, with DRY_RUN=1 to print instead of send
   build.sh test.sh   Build the wasm; run every test
-  create-dao.sh      Create the Sputnik DAO (council of 3, 2 approvals)
+  create-dao.sh      Create an example Sputnik DAO to use as the governor
   deploy-testnet.sh  Deploy and initialise the token with the demo factor
   propose-payout.sh  Propose a payout through the DAO and vote
   verify-testnet.sh  Keyless on-chain check of a deployed token
@@ -235,7 +240,7 @@ assets/            Logo and screenshots used by this README
 |---|---|---|
 | Rust unit and property tests | Maths, claims, transfers, payouts, daily limit, index-zero behaviour, JSON interface | 32 |
 | Fuzz tests | Random operations and time jumps, invariants checked throughout | 2 × 100,000 steps |
-| Sandbox tests (local NEAR node) | Token flow, governor-only payouts, a real Sputnik DAO with 2 of 3 approvals | 2 (+1 slow) |
+| Sandbox tests (local NEAR node) | Token flow, governor-only payouts, an example Sputnik DAO governing `pay_out` | 2 (+1 slow) |
 | Slow sandbox test | The daily limit holds and resets across a UTC midnight | about 22 minutes, `scripts/test.sh --slow` |
 | Web checks | JavaScript maths, amount and timestamp handling, the simulation, wallet-error wording | 40 |
 | On-chain verifier | Recomputes a deployed token's numbers from raw chain state | `scripts/verify-testnet.sh` |
@@ -256,7 +261,8 @@ export DAO=my-dao                    # becomes my-dao.sputnikv2.testnet
 near account create-account sponsor-by-faucet-service $TOKEN \
   autogenerate-new-keypair save-to-keychain network-config testnet create
 
-# 2. Create the DAO: a council of three accounts, two approvals needed
+# 2. Create a governor. Any DAO or account works; this script makes an example Sputnik DAO
+#    (a council of three accounts, two approvals needed). Skip it if you already have a governor.
 DRY_RUN=1 scripts/create-dao.sh $DAO <signer>.testnet <c1>.testnet <c2>.testnet <c3>.testnet
 scripts/create-dao.sh            $DAO <signer>.testnet <c1>.testnet <c2>.testnet <c3>.testnet
 
@@ -281,7 +287,7 @@ scripts/propose-payout.sh $DAO.sputnikv2.testnet $TOKEN <recipient>.testnet 10 <
 - **Testnet and a demo.** The coins have no value. The code has not been audited.
 - **The demo runs fast on purpose.** 1% per hour lets you watch it; a real DAO would use 1% per month. A deployed copy has a finite life, described under [Parameters](#parameters).
 - **The test faucet is open to everyone.** Accounts are free, so one person can claim many times, limited only by the daily limit, which the faucet shares with DAO payouts. A real DAO would have no open claim and would pay out only through approved proposals.
-- **Payouts depend on the DAO.** The contract enforces the daily limit and nothing about recipients. Two of three council members can pay out up to the day's remaining limit.
+- **Payouts depend on the governor.** The contract enforces the daily limit and nothing about recipients. Whoever governs the token decides who is paid, up to the day's remaining limit.
 - **The token account still has a full-access key,** so its owner could replace the code. Deleting it is optional and irreversible; it makes the code permanent and means a bug could never be fixed. The website reads this live.
 - **No `ft_transfer_call`.** The token does not make cross-contract calls, so it cannot be sent into contracts that need a callback.
 - **Balances change with the clock, not with transactions,** so explorers and wallets show a new balance only when they read it again, and melting emits no events.
