@@ -16,7 +16,6 @@ export function friendly(err) {
     [/Index too small/i, "This demo copy has melted too far to move this amount. Balances still read correctly."],
     [/Index is zero/i, "This demo copy has fully melted, so nothing can be sent or claimed any more."],
     [/Sender and receiver should be different/i, "You cannot send coins to yourself."],
-    [/Cannot transfer to the treasury/i, "You cannot send coins to the town pot account."],
     [/Requires attached deposit of exactly 1 yoctoNEAR/i, "The wallet did not attach the 1 yoctoNEAR a transfer needs. Try again."],
     [/reject|cancel|denied|closed|declin|user.*(abort|refus)/i, "The wallet request was cancelled. Nothing was sent."],
   ];
