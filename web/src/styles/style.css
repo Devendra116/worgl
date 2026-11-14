@@ -341,3 +341,5 @@ footer p{max-width:var(--measure)}
 
 .made-by{margin-top:var(--s5);padding-top:var(--s3);border-top:1px solid var(--hair);font:500 var(--t-small)/1.4 var(--sans);color:var(--ink)}
 .made-by .heart{width:1.05em;height:1.05em;vertical-align:-.2em;margin:0 .15em}
+
+[hidden]{display:none !important}

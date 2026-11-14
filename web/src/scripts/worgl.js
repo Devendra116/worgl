@@ -83,6 +83,18 @@ export class Chain {
     if (j.error || j.result?.error) throw new Error(`${method}: ${JSON.stringify(j.error ?? j.result.error)}`);
     return parseChainJson(new TextDecoder().decode(new Uint8Array(j.result.result)));
   }
+  /** true if the NEAR account exists, false if it does not. Anything else is an error. */
+  async accountExists(accountId) {
+    const res = await fetch(this.rpcUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "view_account", finality: "final", account_id: accountId } }),
+    });
+    const j = await res.json();
+    if (j.result) return true;
+    if (j.error?.cause?.name === "UNKNOWN_ACCOUNT") return false;
+    throw new Error(`view_account: ${JSON.stringify(j.error)}`);
+  }
   async finalHeight() {
     const res = await fetch(this.rpcUrl, {
       method: "POST",

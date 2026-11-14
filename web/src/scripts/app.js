@@ -570,17 +570,19 @@ $("connect").addEventListener("click", async () => {
   catch (e) { setStatus("claim-status", friendly(e), true); }
 });
 
-async function sendCall(methodName, args, deposit) {
+/** One wallet transaction to the token with one or more function calls, in order. */
+async function sendActions(calls) {
   const wallet = await connector.wallet();
   const out = await wallet.signAndSendTransaction({
     signerId: accountId,
     receiverId: TOKEN_ID,
-    actions: [{ type: "FunctionCall", params: { methodName, args, gas: GAS, deposit } }],
+    actions: calls.map(([methodName, args, deposit]) => ({ type: "FunctionCall", params: { methodName, args, gas: GAS, deposit } })),
   });
   const failure = outcomeError(out);
   if (failure) throw new Error(failure);
   return out;
 }
+const sendCall = (methodName, args, deposit) => sendActions([[methodName, args, deposit]]);
 const txOf = (out) => out?.transaction?.hash ?? out?.transaction_outcome?.id ?? "";
 
 $("claim").addEventListener("click", async () => {
@@ -622,19 +624,50 @@ $("send-form").addEventListener("submit", async (e) => {
   setStatus("send-status", "Checking the recipient…");
   try {
     const recipient = await chain.view("get_account", { account_id: to });
-    if (!recipient) { setStatus("send-status", `${to} is not registered yet. Ask them to claim 100 coins first.`, true); return; }
+    if (!recipient) {
+      // Not set up for WORGL yet. A typo must never be paid for, so check the NEAR account exists first.
+      if (!(await chain.accountExists(to))) { setStatus("send-status", `No testnet account called ${to} exists. Check the spelling.`, true); return; }
+      pendingSend = { to, amount };
+      setStatus("send-status", `${to} has not set up WORGL yet. You can register them for ${formatNear(BigInt(params.storage_cost), 5)} NEAR, paid by you, and send ${formatCoins(amount, 4)} coins in the same step.`);
+      $("register-row").hidden = false;
+      return;
+    }
     setStatus("send-status", "Waiting for your wallet to confirm…");
     const out = await sendCall("ft_transfer", { receiver_id: to, amount: amount.toString() }, "1");
-    const hash = txOf(out);
-    const el = $("send-status");
-    el.classList.remove("err");
-    realSent = true;
-    el.textContent = `Sent ${formatCoins(amount, 4)} coins to ${to}. `;
-    if (hash) el.append(link("Transaction", `${EXPLORER}/txns/${hash}`));
-    setTimeout(() => { refresh(); loadActivity(); }, 2500);
+    showSent(out, `Sent ${formatCoins(amount, 4)} coins to ${to}. `);
   } catch (err) { setStatus("send-status", friendly(err), true); }
   finally { busy = false; updateButtons(); }
 });
+
+let pendingSend = null;   // a send to an account that still needs registering, waiting for the visitor to confirm
+function clearPendingSend() { pendingSend = null; $("register-row").hidden = true; }
+function showSent(out, text) {
+  const hash = txOf(out);
+  const el = $("send-status");
+  el.classList.remove("err");
+  realSent = true;
+  clearPendingSend();
+  el.textContent = text;
+  if (hash) el.append(link("Transaction", `${EXPLORER}/txns/${hash}`));
+  setTimeout(() => { refresh(); loadActivity(); }, 2500);
+}
+$("send-register").addEventListener("click", async () => {
+  if (!pendingSend || !connector || !accountId) return;
+  const { to, amount } = pendingSend;
+  busy = true; updateButtons();
+  setStatus("send-status", "Waiting for your wallet to confirm…");
+  try {
+    // one transaction: register the recipient (the sender pays the storage deposit), then send
+    const out = await sendActions([
+      ["storage_deposit", { account_id: to, registration_only: true }, params.storage_cost],
+      ["ft_transfer", { receiver_id: to, amount: amount.toString() }, "1"],
+    ]);
+    showSent(out, `Registered ${to} and sent ${formatCoins(amount, 4)} coins. `);
+  } catch (err) { setStatus("send-status", friendly(err), true); }
+  finally { busy = false; updateButtons(); }
+});
+$("send-register-cancel").addEventListener("click", () => { clearPendingSend(); setStatus("send-status", ""); });
+for (const id of ["to", "amount"]) $(id).addEventListener("input", () => { if (pendingSend) { clearPendingSend(); setStatus("send-status", ""); } });
 
 $("who-go").addEventListener("click", () => { const v = $("who-input").value.trim().toLowerCase(); if (v) setWho(v); });
 $("who-input").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("who-go").click(); } });

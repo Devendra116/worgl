@@ -45,7 +45,7 @@ import Base from "../layouts/Base.astro";
         <div class="body">
           <h3>Send some to a friend</h3>
           <p class="only-sim">Send 10 coins to Sam. The melt keeps running for both of you.</p>
-          <p class="only-real">Send coins to an account that has claimed.</p>
+          <p class="only-real">Send coins to any NEAR testnet account. If they have not set up WORGL yet, you can register them for a small deposit and send in one step.</p>
           <div class="row only-sim">
             <button id="sim-send" type="button" class="solid" disabled>Send 10 coins to Sam</button>
           </div>
@@ -55,6 +55,10 @@ import Base from "../layouts/Base.astro";
               <div class="row"><input id="amount" name="amount" inputmode="decimal" autocomplete="off" placeholder="10" size="14"><button id="max" type="button">Max</button></div>
             </div>
             <div class="row"><button id="send" type="submit" class="solid" disabled>Send</button></div>
+            <div class="row" id="register-row" hidden>
+              <button id="send-register" type="button" class="solid">Register and send</button>
+              <button id="send-register-cancel" type="button">Cancel</button>
+            </div>
           </form>
           <p id="send-status" class="status" role="status"></p>
         </div>
