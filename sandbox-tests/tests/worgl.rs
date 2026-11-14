@@ -134,6 +134,59 @@ async fn sender_registers_and_pays_a_new_account_in_one_transaction() -> anyhow:
     Ok(())
 }
 
+async fn shares_of(e: &Env, who: &Account) -> u128 {
+    let v: Value = e.token.view("get_account").args_json(json!({"account_id": who.id()})).await.unwrap().json().unwrap();
+    u(&v["shares"])
+}
+
+/// transfer_all on a real node: the sender ends at exactly zero even though the balance melts,
+/// the receiver gets exactly those shares, and the event carries the amount the call returns.
+#[tokio::test]
+async fn transfer_all_empties_the_sender_exactly_on_a_real_node() -> anyhow::Result<()> {
+    let e = setup().await?;
+    e.claim(&e.alice).await?;
+    e.claim(&e.bob).await?;
+    e.worker.fast_forward(1_000).await?; // let part of the balance melt, so it is not a round number
+    let (sa, sb) = (shares_of(&e, &e.alice).await, shares_of(&e, &e.bob).await);
+    let before = e.stats().await;
+
+    let res = e.alice.call(e.token.id(), "transfer_all")
+        .args_json(json!({"receiver_id": e.bob.id(), "memo": "all"}))
+        .deposit(NearToken::from_yoctonear(1)).gas(Gas::from_tgas(30)).transact().await?;
+    assert!(res.is_success(), "transfer_all failed: {:?}", res.failures());
+    let logs: Vec<String> = res.logs().into_iter().map(|l| l.to_string()).collect();
+    let sent: String = res.json()?;
+    let sent: u128 = sent.parse()?;
+    assert!(sent > 0 && sent < 100 * ONE_COIN);
+
+    // the event reports the same amount
+    let log = logs.into_iter().find(|l| l.contains("ft_transfer") && l.contains("\"all\"")).expect("an ft_transfer event");
+    let ev: Value = serde_json::from_str(log.trim_start_matches("EVENT_JSON:"))?;
+    assert_eq!(u(&ev["data"][0]["amount"]), sent);
+    assert_eq!(ev["data"][0]["old_owner_id"], json!(e.alice.id().to_string()));
+    assert_eq!(ev["data"][0]["new_owner_id"], json!(e.bob.id().to_string()));
+
+    assert_eq!(shares_of(&e, &e.alice).await, 0, "exactly zero shares left");
+    assert_eq!(e.bal(&e.alice).await, 0, "exactly zero balance left");
+    assert_eq!(shares_of(&e, &e.bob).await, sa + sb, "bob gained exactly alice's shares");
+    let after = e.stats().await;
+    assert_eq!(u(&after["total_shares"]), u(&before["total_shares"]), "total_shares unchanged");
+    assert_eq!(u(&after["treasury"]) + u(&after["circulating"]), 1_000_000 * ONE_COIN);
+
+    // refusals
+    let fails = |r: &near_workspaces::result::ExecutionFinalResult, needle: &str| r.is_failure() && format!("{:?}", r.failures()).contains(needle);
+    let no_yocto = e.bob.call(e.token.id(), "transfer_all").args_json(json!({"receiver_id": e.alice.id()})).transact().await?;
+    assert!(fails(&no_yocto, "exactly 1 yoctoNEAR"), "{:?}", no_yocto.failures());
+    let to_self = e.bob.call(e.token.id(), "transfer_all").args_json(json!({"receiver_id": e.bob.id()})).deposit(NearToken::from_yoctonear(1)).transact().await?;
+    assert!(fails(&to_self, "should be different"));
+    let unregistered = e.bob.call(e.token.id(), "transfer_all").args_json(json!({"receiver_id": e.mallory.id()})).deposit(NearToken::from_yoctonear(1)).transact().await?;
+    assert!(fails(&unregistered, "Receiver is not registered"));
+    let empty = e.alice.call(e.token.id(), "transfer_all").args_json(json!({"receiver_id": e.bob.id()})).deposit(NearToken::from_yoctonear(1)).transact().await?;
+    assert!(fails(&empty, "you hold no coins"), "an account with no shares cannot send");
+    assert_eq!(shares_of(&e, &e.bob).await, sa + sb, "no refusal moved a share");
+    Ok(())
+}
+
 /// claim -> transfer -> time passes -> pay_out, plus access control on pay_out.
 #[tokio::test]
 async fn claim_transfer_time_passes_pay_out() -> anyhow::Result<()> {

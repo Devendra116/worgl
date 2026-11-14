@@ -285,6 +285,7 @@ fn fuzz(factor: u128, max_step_secs: u64, seed: u64, ops: usize) {
     let pool: Vec<AccountId> = (0..40).map(acct).collect();
     let mut secs = 0u64;
     let mut transfers = 0usize;
+    let mut transfers_all = 0usize;
     let mut claims = 0usize;
     for step in 0..ops {
         secs += rng.gen_range(0..=max_step_secs);
@@ -306,7 +307,19 @@ fn fuzz(factor: u128, max_step_secs: u64, seed: u64, ops: usize) {
             if to != who && c.accounts.contains_key(to) {
                 set(who.as_str(), secs, 1); // context at this step's time, 1 yocto attached
                 let b = bal(&c, who);
-                if b > 0 {
+                if b > 0 && rng.gen_range(0..8) == 0 {
+                    // transfer_all: the whole balance, by moving every share
+                    let (sh, rcv) = (c.accounts.get(who).unwrap().shares, c.accounts.get(to).unwrap().shares);
+                    let (total, circ) = (c.total_shares, c.get_stats().circulating.0);
+                    let sent = c.transfer_all(to.clone(), None).0;
+                    assert_eq!(sent, b, "step {step}: transfer_all returned the balance at that moment");
+                    assert_eq!(c.accounts.get(who).unwrap().shares, 0, "step {step}: sender ends with 0 shares");
+                    assert_eq!(bal(&c, who), 0, "step {step}: sender ends with 0 balance");
+                    assert_eq!(c.accounts.get(to).unwrap().shares, rcv + sh, "step {step}: receiver gains exactly the shares");
+                    assert_eq!(c.total_shares, total, "step {step}: total_shares unchanged");
+                    assert_eq!(c.get_stats().circulating.0, circ, "step {step}: circulating unchanged");
+                    transfers_all += 1;
+                } else if b > 0 {
                     let amt = match rng.gen_range(0..4) {
                         0 => b,                       // full balance
                         1 => rng.gen_range(1..=b.min(1000)), // dust
@@ -344,6 +357,7 @@ fn fuzz(factor: u128, max_step_secs: u64, seed: u64, ops: usize) {
         assert_eq!(c.holders as u128, holders);
     }
     assert!(transfers > ops / 5, "too few transfers exercised: {transfers}");
+    assert!(transfers_all > ops / 100, "too few transfer_all calls exercised: {transfers_all}");
     assert!(claims >= 40);
 }
 
@@ -644,4 +658,125 @@ fn views_send_nanosecond_timestamps_as_strings() {
     for (name, v) in [("get_params", &params), ("get_stats", &stats), ("get_account", &account)] {
         assert_no_big_json_numbers(v, name);
     }
+}
+
+// ------------------------------------------------- transfer_all: send the whole balance
+
+/// Two registered accounts after some time has passed, so the balance is not a round number.
+fn pair_with_time() -> (Worgl, AccountId, AccountId, u64) {
+    let mut c = deploy(FACTOR_DEMO);
+    let (a, b) = (acct(1), acct(2));
+    claim_as(&mut c, &a, 0);
+    claim_as(&mut c, &b, 0);
+    (c, a, b, 1234)
+}
+
+#[test]
+fn transfer_all_moves_every_share_and_nothing_else() {
+    let (mut c, a, b, secs) = pair_with_time();
+    set(a.as_str(), secs, 1);
+    let (sa, sb) = (c.accounts.get(&a).unwrap().shares, c.accounts.get(&b).unwrap().shares);
+    let before = c.get_stats();
+    let index = c.get_index().0;
+    let want = bal(&c, &a);
+    assert!(want > 0 && want < CLAIM_AMOUNT && want % ONE_COIN != 0, "a melted, non-round balance: {want}");
+    let flags = (c.accounts.get(&a).unwrap().claimed, c.accounts.get(&b).unwrap().claimed);
+
+    let sent = c.transfer_all(b.clone(), Some("all of it".into())).0;
+
+    assert_eq!(sent, want, "returns the amount worked out at that moment");
+    assert_eq!(c.accounts.get(&a).unwrap().shares, 0, "sender ends with exactly 0 shares");
+    assert_eq!(bal(&c, &a), 0, "sender ends with exactly 0 balance");
+    assert_eq!(c.accounts.get(&b).unwrap().shares, sa + sb, "receiver gains exactly the sender's shares");
+    assert_eq!(bal(&c, &b), balance_of_shares(sa + sb, index), "and holds both balances");
+    assert_eq!(c.total_shares, sa + sb, "total_shares is unchanged");
+    let after = c.get_stats();
+    assert_eq!(after.circulating.0, before.circulating.0, "circulating unchanged");
+    assert_eq!(after.treasury.0, before.treasury.0, "treasury unchanged");
+    assert_eq!(after.treasury.0 + after.circulating.0, TOTAL_SUPPLY, "balances plus treasury still add up to the supply");
+    assert_eq!(after.holders, before.holders);
+    assert_eq!(flags, (c.accounts.get(&a).unwrap().claimed, c.accounts.get(&b).unwrap().claimed), "claimed flags untouched");
+    // the same NEP-141 event as ft_transfer, carrying the amount
+    let log = get_logs().into_iter().find(|l| l.contains("ft_transfer") && l.contains("all of it")).expect("an ft_transfer event");
+    let ev: Value = serde_json::from_str(log.trim_start_matches("EVENT_JSON:")).unwrap();
+    assert_eq!(ev["standard"], "nep141");
+    assert_eq!(ev["event"], "ft_transfer");
+    assert_eq!(ev["data"][0]["old_owner_id"], a.as_str());
+    assert_eq!(ev["data"][0]["new_owner_id"], b.as_str());
+    assert_eq!(ev["data"][0]["amount"], want.to_string());
+    assert_eq!(ev["data"][0]["memo"], "all of it");
+}
+
+#[test]
+fn transfer_all_refusals_change_nothing() {
+    let (mut c, a, b, secs) = pair_with_time();
+    let u = acct(3); // registered, holds nothing
+    set(u.as_str(), secs, cost(&c));
+    c.storage_deposit(None, None);
+    let stranger = acct(4); // not registered
+    let snapshot = |c: &Worgl| (c.total_shares, c.accounts.get(&a).unwrap().shares, c.accounts.get(&b).unwrap().shares);
+    let before = snapshot(&c);
+
+    // no yocto, and the wrong amount of yocto
+    set(a.as_str(), secs, 0);
+    panics_with("exactly 1 yoctoNEAR", || { c.transfer_all(b.clone(), None); });
+    set(a.as_str(), secs, 2);
+    panics_with("exactly 1 yoctoNEAR", || { c.transfer_all(b.clone(), None); });
+    // to yourself, and to the contract's own account
+    set(a.as_str(), secs, 1);
+    panics_with("Sender and receiver should be different", || { c.transfer_all(a.clone(), None); });
+    set(a.as_str(), secs, 1);
+    panics_with("Cannot transfer to the treasury", || { c.transfer_all(TREASURY.parse().unwrap(), None); });
+    // to an account that has not registered
+    set(a.as_str(), secs, 1);
+    panics_with("Receiver is not registered", || { c.transfer_all(stranger.clone(), None); });
+    // from an account that has not registered, and from one that holds no coins
+    set(stranger.as_str(), secs, 1);
+    panics_with("Sender is not registered", || { c.transfer_all(b.clone(), None); });
+    set(u.as_str(), secs, 1);
+    panics_with("you hold no coins", || { c.transfer_all(b.clone(), None); });
+    assert_eq!(before, snapshot(&c), "no refusal moved a share");
+}
+
+#[test]
+fn transfer_all_refuses_a_balance_that_has_melted_to_zero() {
+    let (mut c, _a, b, secs) = pair_with_time();
+    // one share is worth less than one base unit while the index is below 1
+    let dust = acct(5);
+    c.accounts.insert(dust.clone(), Account { shares: 1, claimed: false });
+    c.total_shares += 1;
+    c.holders += 1;
+    set(dust.as_str(), secs, 1);
+    assert_eq!(bal(&c, &dust), 0);
+    panics_with("your balance is zero", || { c.transfer_all(b.clone(), None); });
+    assert_eq!(c.accounts.get(&dust).unwrap().shares, 1);
+}
+
+#[test]
+fn transfer_all_is_refused_once_the_index_is_zero() {
+    let (mut c, a, b, _secs) = pair_with_time();
+    set(a.as_str(), 400 * 86_400, 1);
+    assert_eq!(c.get_index().0, 0);
+    panics_with("Index is zero", || { c.transfer_all(b.clone(), None); });
+}
+
+// ------------------------------------------------- the stored state layout is frozen
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{:02x}", b)).collect()
+}
+
+/// These bytes were captured from the contract that is DEPLOYED on testnet (before transfer_all existed),
+/// from the same two claims. If this test fails, a stored field was added, removed, reordered or retyped,
+/// and deploying the new wasm over the existing state would corrupt it.
+#[test]
+fn stored_state_layout_is_identical_to_the_deployed_version() {
+    let mut c = deploy(FACTOR_DEMO);
+    claim_as(&mut c, &acct(1), 0);
+    claim_as(&mut c, &acct(2), 5);
+    let bytes = near_sdk::borsh::to_vec(&c).unwrap();
+    assert_eq!(bytes.len(), 124);
+    assert_eq!(hex(&bytes), "0100000061701428ade8b193d70a0000000000000080b53fe3e38c6a48a52d3b030000000000002a36fe9c97170200000000000000000030e03b3c034e4400000000000000db4c000000000000000000a1edccce1bc2d3000000000000000020c65abc8ed70a000000000000000b00000064616f2e746573746e6574");
+    let account = near_sdk::borsh::to_vec(&Account { shares: 0x0102030405060708090a0b0c0d0e0f10, claimed: true }).unwrap();
+    assert_eq!(hex(&account), "100f0e0d0c0b0a09080706050403020101");
 }
