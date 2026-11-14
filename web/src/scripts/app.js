@@ -139,7 +139,7 @@ function renderRules() {
     ledgerLine("Daily payout cap", `${params.daily_cap_bps / 100}% of the town pot`, "Measured at the start of each UTC day. Test claims and payouts share it."),
   ];
   const gov = link(params.governor, `${EXPLORER}/address/${params.governor}`);
-  rows.push(ledgerLine("Governor", gov, "A Sputnik DAO. It can call pay_out and nothing else."));
+  rows.push(ledgerLine("Governor", gov, "Chosen at deployment, usually a DAO. It can call pay_out and nothing else."));
   $("rules").replaceChildren(...rows);
 }
 
@@ -418,7 +418,7 @@ async function loadProposals() {
       li.append(t, `Proposal ${p.id}, ${status}: ${p.description} (${votes[0]} approve, ${votes[1]} reject)`);
       return li;
     });
-    if (!out.length) { const li = document.createElement("li"); li.textContent = "No proposals yet. A council member can propose a payout with scripts/propose-payout.sh."; out.push(li); }
+    if (!out.length) { const li = document.createElement("li"); li.textContent = "No proposals yet on the demo DAO. They are made with scripts/propose-payout.sh."; out.push(li); }
     list.replaceChildren(...out);
   } catch {
     const li = document.createElement("li");

@@ -5,11 +5,11 @@ import Base from "../layouts/Base.astro";
 <section class="section lead-section" aria-labelledby="faq-title">
   <h1 id="faq-title" class="page-title">Questions people ask</h1>
   <div class="faq">
-    <details open><summary>What do NEAR, testnet and DAO mean?</summary><p><b>NEAR</b> is a blockchain, a shared record no single company controls. <b>Testnet</b> is its practice version, where nothing costs or is worth real money. A <b>DAO</b> decides by voting on a blockchain. Here it has three members, and two must agree before anyone is paid.</p></details>
+    <details open><summary>What do NEAR, testnet and DAO mean?</summary><p><b>NEAR</b> is a blockchain, a shared record no single company controls. <b>Testnet</b> is its practice version, where nothing costs or is worth real money. A <b>DAO</b> decides by voting on a blockchain. Any DAO, with any approval rule, can govern a Wörgl token. The demo uses a small one with three members, where two must agree.</p></details>
     <details><summary>Is this a memecoin?</summary><p>It was built for the memecoin track of NEAR HACKATHON, but it is not for speculating. There is no price and no way to buy coins. The meme is the idea: money that expires.</p></details>
     <details><summary>Why would anyone want money that shrinks?</summary><p>Because the loss is small and goes back to the community. If holding costs a little, a coin is more useful spent than kept. It suits budgets, grants and event credits, which are meant to be used.</p></details>
-    <details><summary>Who decides who gets paid?</summary><p>The DAO. The contract then enforces a cap of 10% of the pot per day, whatever the DAO votes. The DAO cannot touch anyone's balance or change the melt.</p></details>
-    <details><summary>Why is there a claim button?</summary><p>For testing on testnet, so visitors can try Wörgl without asking anyone for coins. A real DAO would not have an open claim. It would pay members through proposals the council approves.</p></details>
+    <details><summary>Who decides who gets paid?</summary><p>The governor, which is chosen at deployment and is usually a DAO. The contract enforces a cap of 10% of the pot per day, whatever the governor decides. The governor cannot touch anyone's balance or change the melt.</p></details>
+    <details><summary>Why is there a claim button?</summary><p>For testing on testnet, so visitors can try Wörgl without asking anyone for coins. A real DAO would not have an open claim. It would pay members through proposals its governor approves.</p></details>
     <details><summary>Can the test faucet be cheated?</summary><p>A little. Accounts are free, so one person can claim many times. The daily cap limits the damage, which is one more reason a real deployment would pay out through the DAO.</p></details>
     <details><summary>What happens when the demo runs out?</summary><p>This copy melts fast on purpose. It stays accurate for about <span data-accurate>4.5 months</span>. After that, large payouts fail, then claims stop, and finally every balance reads zero. The numbers page shows the exact dates. At the real rate of 1% a month it lasts for centuries.</p></details>
   </div>
@@ -21,7 +21,7 @@ import Base from "../layouts/Base.astro";
     <li><b>This is a hackathon project on testnet.</b> The coins have no value, and the code has not been audited.</li>
     <li><b>The demo runs at a fast speed.</b> 1% every <span data-period>hour</span>, so you can watch it. The real setting is 1% a month.</li>
     <li><b>The test faucet is open to everyone.</b> Accounts are free, so one person can claim many times. A real DAO would pay out through approved proposals instead.</li>
-    <li><b>The DAO chooses who is paid.</b> The contract enforces the daily cap; the council decides the recipients.</li>
+    <li><b>The governor chooses who is paid.</b> The contract enforces the daily cap; whoever governs the token decides the recipients.</li>
     <li><b>Coins are not yet usable inside other contracts.</b> The token does not support <code>ft_transfer_call</code>.</li>
     <li id="key-limit"><b>The contract can still be replaced.</b> <span id="key-status">Checking this account's keys…</span></li>
     <li><b>Balances change with the clock.</b> Wallets and explorers show the new balance when they read it again.</li>
