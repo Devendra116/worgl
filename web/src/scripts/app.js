@@ -274,10 +274,14 @@ function updateButtons() {
   $("send").disabled = busy || !accountId || !sync?.account;
   const el = $("claim-status");
   if (mode !== "real") return;
-  const hint = !accountId ? CLAIM_HINTS[0] : claimed ? CLAIM_HINTS[1] : "";
+  const hint = !accountId ? CLAIM_HINTS[0] : !sync ? CLAIM_HINTS[2] : claimed ? CLAIM_HINTS[1] : "";
   if (!el.textContent || CLAIM_HINTS.includes(el.textContent)) { el.textContent = hint; el.classList.remove("err"); }
 }
-const CLAIM_HINTS = ["Wallet not connected. Connect a wallet to claim.", "You have already claimed."];
+const CLAIM_HINTS = [
+  "Wallet not connected. Connect a wallet to claim.",
+  "You have already claimed. Each account can claim once. Send some coins, or try another account.",
+  "Waiting for the chain to answer. This updates by itself in a few seconds.",
+];
 
 // ---------------------------------------------------------------- check the maths
 let lookup = { id: null, acc: undefined };
@@ -435,14 +439,20 @@ let simSent = false, realSent = false;
 const simFactor = () => (params ? BigInt(params.factor) : DEMO_FACTOR);
 const getSim = () => (sim ??= createSim(simFactor()));
 
+function updateModeNote() {
+  $("mode-note").textContent = mode === "real"
+    ? "Real testnet transactions, signed in your wallet. The numbers come from the live contract."
+    : accountId
+      ? `Your wallet (${accountId}) is connected, but this is the simulation, so nothing is sent to the chain. Choose "My testnet wallet" to claim for real.`
+      : "Simulated in your browser with the real maths. Nothing is sent to the chain.";
+}
+
 function setMode(next, byUser = true) {
   mode = next; if (byUser) modeChosen = true;
   $("try").dataset.mode = mode;
   $("mode-sim").setAttribute("aria-pressed", String(mode === "sim"));
   $("mode-real").setAttribute("aria-pressed", String(mode === "real"));
-  $("mode-note").textContent = mode === "sim"
-    ? "Simulated in your browser with the real maths. Nothing is sent to the chain."
-    : "Real testnet transactions, signed in your wallet. The numbers come from the live contract.";
+  updateModeNote();
   for (const id of ["s1-status", "claim-status", "send-status"]) setStatus(id, "");
   lastSecond = -1n;
   renderAll(true);
@@ -452,6 +462,7 @@ function setMode(next, byUser = true) {
 function markStep(n, done) { $("step-" + n).classList.toggle("done", !!done); }
 
 function renderTry(f) {
+  updateModeNote();
   const s = getSim();
   const fmt = (v) => `${formatCoinsRound(v, 4)} WORGL`;
   if (mode === "sim") {
@@ -473,6 +484,7 @@ function renderTry(f) {
   // real mode
   const acc = sync?.account;
   const claimed = !!acc?.claimed;
+  updateButtons();
   $("connect-step").disabled = !!accountId || !connector;
   $("connect-step").textContent = accountId ? "Connected" : "Connect wallet";
   setStatus("s1-status", accountId ? `Connected as ${accountId}.` : connector ? "" : "The wallet connector could not load, so real mode is unavailable. Try the simulation.");
