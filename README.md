@@ -44,7 +44,7 @@ and the melt funds a treasury that a DAO pays out again.
 | **Governor** | Any account chosen at deployment, normally a DAO of your choice with **any approval rule**. It can call exactly one method, `pay_out`. The demo deployment uses the Sputnik DAO [`devworgl-dao.sputnikv2.testnet`](https://testnet.nearblocks.io/address/devworgl-dao.sputnikv2.testnet) purely as an example; the token does not care how the governor decides. |
 | **Payout limit** | At most **10% of the treasury per UTC day**, enforced by the contract. |
 | **Standards** | NEP-141 core (`ft_transfer`, `ft_balance_of`, `ft_total_supply`), NEP-145 storage management, NEP-148 metadata. No `ft_transfer_call`, by design. |
-| **Verified by** | 32 Rust unit and property tests (two 100,000-step fuzz tests), sandbox tests on a local NEAR node (including an example Sputnik DAO governing `pay_out`), 40 web checks, and a keyless on-chain verifier. |
+| **Verified by** | 37 Rust unit and property tests (two 100,000-step fuzz tests), sandbox tests on a local NEAR node (including an example Sputnik DAO governing `pay_out`, and an upgrade test over the deployed wasm), 47 web checks, and a keyless on-chain verifier. |
 | **Website** | A six-page [Astro](https://astro.build) static site in [`web/`](web/) with a live note, a no-wallet simulation, wallet claim and send, and in-browser checks. |
 | **Track** | NEAR HACKATHON, **memecoins**. Testnet only; the coins have no value. |
 
@@ -108,7 +108,7 @@ You see `ALL CHECKS PASSED` after the script recomputes the melt index, the cons
 scripts/test.sh
 ```
 
-You see `ALL TESTS PASSED`. It runs the Python reference maths, the 32 Rust tests, builds the wasm with `cargo-near`, runs the sandbox tests and checks the website's maths against the contract's test vectors. It needs Rust with the `wasm32-unknown-unknown` target, `cargo-near`, Python 3 with `matplotlib` and `numpy`, and Node. Docker is needed only if your glibc is older than 2.39 (the scripts detect this and run the sandbox node in an `ubuntu:24.04` container).
+You see `ALL TESTS PASSED`. It runs the Python reference maths, the 37 Rust tests, builds the wasm with `cargo-near`, runs the sandbox tests and checks the website's maths against the contract's test vectors. It needs Rust with the `wasm32-unknown-unknown` target, `cargo-near`, Python 3 with `matplotlib` and `numpy`, and Node. Docker is needed only if your glibc is older than 2.39 (the scripts detect this and run the sandbox node in an `ubuntu:24.04` container).
 
 ### 4. Build the website for hosting
 
@@ -139,7 +139,7 @@ treasury    = 1,000,000 coins − circulating              the contract's own ac
 
 - Balances round **down** and the total in circulation rounds **up**, so `treasury + circulating` is exactly 1,000,000 coins at every moment.
 - A transfer takes `ceil(amount × RAY ÷ index)` shares from the sender and gives the receiver `floor(…)`. The leftover dust stays with the treasury. Sending your whole balance moves all of your shares.
-- Every product uses **256-bit integers** and is range-checked back into `u128`. Overflow checks are on in the release build.
+- **`transfer_all` moves every share**, so nothing is rounded and nothing is left behind (see below). Every other product uses **256-bit integers** and is range-checked back into `u128`. Overflow checks are on in the release build.
 - Time uses `block_timestamp`, never block height. Claims, transfers and payouts are refused once the index reaches zero; leaving the token still works.
 
 ### How it was checked
@@ -179,7 +179,7 @@ treasury    = 1,000,000 coins − circulating              the contract's own ac
 
 | Who | Can | Cannot |
 |---|---|---|
-| **Any account** | Read everything. Claim the test faucet once. Send coins it owns (1 yoctoNEAR attached). Register and unregister for storage. | Mint, or touch anyone else's coins. |
+| **Any account** | Read everything. Claim the test faucet once. Send coins it owns (1 yoctoNEAR attached), or send its whole balance with `transfer_all`. Register and unregister for storage. | Mint, or touch anyone else's coins. |
 | **The governor** (the DAO) | Call `pay_out(recipient, amount, memo)` to a registered account, within the daily limit. | Change any parameter, move, freeze or burn anyone's coins, or mint. |
 | **The governor's own process** (a DAO, any approval rule) | Decide who is paid and how much, however it votes. | Exceed the 10% daily limit: the contract enforces it whatever the governor decides. |
 | **Whoever holds the token account's key** | Replace the contract code while a full-access key exists. | Nothing, once the full-access keys are deleted. See [Limits](#limits-and-honest-notes). |
@@ -199,6 +199,7 @@ The contract has **no admin, upgrade or mint method**, makes **no cross-contract
 | `get_account(account_id)` | view | One account's shares, balance and whether it has claimed. |
 | `ft_balance_of`, `ft_total_supply`, `ft_metadata` | view | NEP-141 and NEP-148. The contract's own account id reports the treasury. |
 | `ft_transfer(receiver_id, amount, memo)` | account owner | Send coins; requires exactly 1 yoctoNEAR; the receiver must be registered. |
+| `transfer_all(receiver_id, memo)` | account owner | Send the **whole** balance and return the amount sent. Requires exactly 1 yoctoNEAR. Because a balance melts every second, no typed amount can be exact; this moves every share instead, so the sender ends at exactly 0 and no dust is created. The receiver must be registered and must not be the sender or the contract. It emits the same `ft_transfer` event, with the amount worked out at that moment. |
 | `claim()` | account owner | Test faucet, 100 coins once per account; attaches the storage deposit for a new account. |
 | `pay_out(recipient, amount, memo)` | governor only | Pay from the treasury to a registered account, within the daily limit. |
 | `storage_deposit`, `storage_balance_of`, `storage_balance_bounds`, `storage_withdraw`, `storage_unregister` | NEP-145 | Registration and leaving. Leaving with `force` returns any balance to the treasury. |
@@ -238,11 +239,12 @@ assets/            Logo and screenshots used by this README
 
 | Layer | What | How many |
 |---|---|---|
-| Rust unit and property tests | Maths, claims, transfers, payouts, daily limit, index-zero behaviour, JSON interface | 32 |
+| Rust unit and property tests | Maths, claims, transfers, `transfer_all` (success, every refusal, fuzzed), payouts, daily limit, index-zero behaviour, JSON interface, and the stored-state layout (compared byte for byte with the deployed contract) | 37 |
 | Fuzz tests | Random operations and time jumps, invariants checked throughout | 2 × 100,000 steps |
-| Sandbox tests (local NEAR node) | Token flow, governor-only payouts, registering a new recipient and paying them in one transaction, an example Sputnik DAO governing `pay_out` | 3 (+1 slow) |
+| Sandbox tests (local NEAR node) | Token flow, governor-only payouts, registering a new recipient and paying them in one transaction, `transfer_all` on a real node, an example Sputnik DAO governing `pay_out` | 4 (+1 slow) |
+| Upgrade test (optional) | Deploys the previously deployed wasm, builds state, deploys the new wasm over it with no init, and checks the raw stored state is byte-for-byte identical: `WORGL_OLD_WASM=<old wasm> cargo test --test upgrade` in `sandbox-tests/` | 1 |
 | Slow sandbox test | The daily limit holds and resets across a UTC midnight | about 22 minutes, `scripts/test.sh --slow` |
-| Web checks | JavaScript maths, amount and timestamp handling, the simulation, wallet-error wording | 40 |
+| Web checks | JavaScript maths, amount and timestamp handling, the simulation, wallet-error wording, the amount a transfer reports | 47 |
 | Wallet flow in a browser | A fake wallet connects, and the Claim button, its deposit and its messages are checked in headless Chrome: `npm run test:ui` (optional; needs Chrome and `npm run build`) | 5 (11 with `CLAIMED_ACCOUNT=<account>`) |
 | On-chain verifier | Recomputes a deployed token's numbers from raw chain state | `scripts/verify-testnet.sh` |
 
