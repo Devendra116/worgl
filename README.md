@@ -8,16 +8,17 @@ The pot pays out through a one-time faucet claim and through payouts approved by
 
 ## Try it
 
-Prerequisites: Rust (with the `wasm32-unknown-unknown` target), `cargo-near`, Python 3 with `matplotlib` and `numpy`, Node 18+ (for the web check), Docker only if your glibc is older than 2.39 (the sandbox `neard` binary needs it; the scripts detect this and use an `ubuntu:24.04` container). Install: `cargo install cargo-near --locked` (needs `libudev-dev` and `pkg-config` on Linux), `cargo install near-cli-rs --locked` for the deploy scripts.
+Prerequisites: Node 18+ is all the website needs. For the contract tests also Rust (with the `wasm32-unknown-unknown` target), `cargo-near`, Python 3 with `matplotlib` and `numpy`, Docker only if your glibc is older than 2.39 (the sandbox `neard` binary needs it; the scripts detect this and use an `ubuntu:24.04` container). Install: `cargo install cargo-near --locked` (needs `libudev-dev` and `pkg-config` on Linux), `cargo install near-cli-rs --locked` for the deploy scripts.
 
-1. Build and test everything locally: `scripts/test.sh` → prints `ALL TESTS PASSED` (about 6 minutes from a fresh clone, longer if `neard` and the Sputnik wasm must be downloaded). It runs the Python reference maths, 32 Rust unit and property tests (two 100,000-step fuzz tests), builds the wasm with cargo-near, runs two near-workspaces sandbox tests, and checks the web page's maths against the contract's test vectors.
-2. Build only the wasm: `scripts/build.sh` → prints the wasm's sha256; the file is `contract/target/near/worgl_token.wasm`.
-3. Regenerate the chart: `python3 sim/simulate.py` → writes `sim/simulation.png`.
-4. Run the website locally (an [Astro](https://astro.build) static site, six pages with clean URLs: `/`, `/idea`, `/try`, `/numbers`, `/maths`, `/faq`): `cd web && npm install && npm run dev`, then open `http://localhost:4321/` → the note counts down, **Try it** walks through four steps (simulated in the browser with the contract's maths, or with your own testnet wallet), and **The numbers** shows treasury, circulating, the day's allowance and recent activity read live with no wallet. Connect a testnet wallet and press **Claim 100 test coins** → your balance appears and starts melting. The claim button is a testnet convenience; a real DAO would pay out through approved proposals instead.
+1. Run the website locally (an [Astro](https://astro.build) static site, six pages with clean URLs: `/`, `/idea`, `/try`, `/numbers`, `/maths`, `/faq`): `cd web && npm install && npm run dev`, then open `http://localhost:4321/` → the note counts down, **Try it** walks through four steps (simulated in the browser with the contract's maths, or with your own testnet wallet), and **The numbers** shows treasury, circulating, the day's allowance and recent activity read live with no wallet. Connect a testnet wallet and press **Claim 100 test coins** → your balance appears and starts melting. The claim button is a testnet convenience; a real DAO would pay out through approved proposals instead.
    Build for hosting: `npm run build` writes plain files to `web/dist/`. On Vercel, Netlify or Cloudflare Pages set the root directory to `web`, the build command to `npm run build` and the output directory to `dist`. For a sub-path host such as GitHub Pages project sites, set `base` in `web/astro.config.mjs`. Set `TOKEN_ID` in `web/src/scripts/config.js` (or open any page with `?token=<account>`).
    Web tests: `node web/test.mjs` (add `TOKEN=<token-account>` for a live read-only check).
+2. Build and test everything locally: `scripts/test.sh` → prints `ALL TESTS PASSED` (about 6 minutes from a fresh clone, longer if `neard` and the Sputnik wasm must be downloaded). It runs the Python reference maths, 32 Rust unit and property tests (two 100,000-step fuzz tests), builds the wasm with cargo-near, runs two near-workspaces sandbox tests, and checks the web page's maths against the contract's test vectors.
+3. Build only the wasm: `scripts/build.sh` → prints the wasm's sha256; the file is `contract/target/near/worgl_token.wasm`.
+4. Regenerate the chart: `python3 sim/simulate.py` → writes `sim/simulation.png`.
 5. Check a deployment without any keys: `scripts/verify-testnet.sh <token-account> [<holder> ...]` → `ALL CHECKS PASSED` after recomputing the index, supply conservation, the daily cap and each holder's balance from raw chain state, all pinned to one block.
 6. Slow test (about 22 minutes): `scripts/test.sh --slow` additionally runs the sandbox test that crosses a UTC midnight to show the daily cap resets.
+
 
 ### Live testnet demo
 
@@ -34,7 +35,7 @@ Keys never go in the repo. `near` signs from your OS keychain; create or import 
 
 ## How NEAR is used
 
-- A Rust contract (near-sdk 5.30.1) implementing NEP-141 (fungible token), NEP-145 (storage management) and NEP-148 (metadata). Claims and payouts emit NEP-141 `ft_transfer` events from the contract account.
+- A Rust contract (near-sdk 5.30.1) implementing the NEP-141 core (`ft_transfer`, `ft_balance_of`, `ft_total_supply`, with 1-yocto transfers), NEP-145 (storage management) and NEP-148 (metadata). `ft_transfer_call` is not implemented, by design: the token makes no cross-contract calls. Claims and payouts emit NEP-141 `ft_transfer` events from the contract account.
 - Governance is a standard **Sputnik DAO v2** created from the testnet factory `sputnikv2.testnet`. The token does not run its own vote and makes **no cross-contract calls**; the DAO calls `pay_out` as a normal `FunctionCall` proposal.
 - Wallet sign-in on the page uses `@hot-labs/near-connect` (0.12.0, loaded from esm.sh; NEAR's docs recommend it, Wallet Selector is deprecated); all reads are plain RPC view calls. Recent activity comes from the NearBlocks v3 API.
 - Testnet: token `worgl-demo.testnet`, DAO `devworgl-dao.sputnikv2.testnet`.
@@ -97,6 +98,8 @@ Rounding rules, always in the contract's favour:
 - **Sandbox tests on older Linux.** On glibc < 2.39 they need Docker. The midnight test takes about 22 minutes because the sandbox cannot jump time.
 
 ## Built during NEAR HACKATHON
+
+Track: **memecoins**. The mechanic is the meme: a fixed supply whose balances melt on a schedule into a treasury that a DAO pays out under a daily cap. All code in this repository was written during the hackathon window (from 1 November 2026); there is no pre-hackathon baseline, and the only NEAR project here is this one.
 
 Libraries and tools: `near-sdk` 5.30.1, `near-contract-standards` 5.30.1, `uint` 0.10, `rand` 0.8 (tests), `near-workspaces` 0.24.0 with `tokio`, `anyhow`, `serde_json`, `base64` (sandbox tests), `cargo-near` 0.23, `near-cli-rs` 0.31, near-sandbox `neard` 2.14.1, Sputnik DAO v2 (the wasm the testnet factory deploys), Astro 7.4.12 (website framework, static output), `@hot-labs/near-connect` 0.12.0 (page), Python with `matplotlib` and `numpy` (simulation); the website uses Jost and Source Serif 4 (OFL, self-hosted in `web/fonts/`) and no JavaScript framework.
 
