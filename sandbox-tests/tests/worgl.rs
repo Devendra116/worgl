@@ -2,6 +2,7 @@
 //! Build the wasm first: `scripts/build.sh` (done for you by `scripts/test.sh`).
 //! A plain account plays the governor; no DAO is involved here.
 
+use near_workspaces::operations::Function;
 use near_workspaces::types::{Gas, NearToken};
 use near_workspaces::{Account, Contract, Worker};
 use serde_json::{json, Value};
@@ -92,6 +93,45 @@ impl Env {
     async fn stats(&self) -> Value {
         self.token.view("get_stats").await.unwrap().json().unwrap()
     }
+}
+
+/// The website lets a sender pay for a new recipient's registration and send in ONE transaction:
+/// storage_deposit(recipient) then ft_transfer. The second action must see the first one's registration.
+#[tokio::test]
+async fn sender_registers_and_pays_a_new_account_in_one_transaction() -> anyhow::Result<()> {
+    let e = setup().await?;
+    e.claim(&e.alice).await?;
+
+    // mallory has not set up the token. A plain transfer to her is refused.
+    let plain = e.alice.call(e.token.id(), "ft_transfer")
+        .args_json(json!({"receiver_id": e.mallory.id(), "amount": (10 * ONE_COIN).to_string()}))
+        .deposit(NearToken::from_yoctonear(1)).transact().await?;
+    assert!(plain.is_failure() && format!("{:?}", plain.failures()).contains("not registered"));
+
+    // register her and pay her in a single transaction signed by alice
+    let res = e.alice.batch(e.token.id())
+        .call(Function::new("storage_deposit")
+            .args_json(json!({"account_id": e.mallory.id(), "registration_only": true}))
+            .deposit(NearToken::from_yoctonear(e.storage_cost)).gas(Gas::from_tgas(30)))
+        .call(Function::new("ft_transfer")
+            .args_json(json!({"receiver_id": e.mallory.id(), "amount": (10 * ONE_COIN).to_string()}))
+            .deposit(NearToken::from_yoctonear(1)).gas(Gas::from_tgas(30)))
+        .transact().await?;
+    assert!(res.is_success(), "batch failed: {:?}", res.failures());
+
+    let near = |x: u128, coins: f64| (x as f64 - coins * ONE_COIN as f64).abs() < 0.05 * ONE_COIN as f64;
+    assert!(near(e.bal(&e.mallory).await, 10.0), "mallory received the coins");
+    assert!(near(e.bal(&e.alice).await, 90.0), "alice paid them");
+    // registering someone does not claim for them: she can still claim her own 100 coins, with no new deposit needed
+    let acc: Value = e.token.view("get_account").args_json(json!({"account_id": e.mallory.id()})).await?.json()?;
+    assert_eq!(acc["claimed"], json!(false));
+    let claim = e.mallory.call(e.token.id(), "claim").gas(Gas::from_tgas(30)).transact().await?;
+    assert!(claim.is_success(), "an already registered account claims without a deposit: {:?}", claim.failures());
+    assert!(near(e.bal(&e.mallory).await, 110.0));
+    // supply stays exactly conserved
+    let st = e.stats().await;
+    assert_eq!(u(&st["treasury"]) + u(&st["circulating"]), 1_000_000 * ONE_COIN);
+    Ok(())
 }
 
 /// claim -> transfer -> time passes -> pay_out, plus access control on pay_out.
